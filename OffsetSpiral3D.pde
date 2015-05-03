@@ -82,9 +82,16 @@ public class OffsetSpiral3D extends Spiral3D {
     return this;
   }
 
-  // scale at each point a certain percentage...
+
 
   public OffsetSpiral3D scaleEach(float[] scale)
+  {
+    return this.scaleEach(scale, false);
+  }
+
+  // scale at each point a certain percentage...
+
+  public OffsetSpiral3D scaleEach(float[] scale, boolean invert)
   {
     if (scale.length != this.points.length)
     {
@@ -105,9 +112,17 @@ public class OffsetSpiral3D extends Spiral3D {
       // always building spiral along Z axis makes the math easier
       
       Vec3D scaled = this.points[i].scale(offsetMag);
-      Vec3D diff = this.points[i].sub(scaled);
-      diff.z = 0f;  // make sure to 0 out z coord
-      this.offset[i] = diff;
+      if (invert)
+      {
+        Vec3D diff = this.points[i].sub(scaled);
+        diff.z = 0f;  // make sure to 0 out z coord
+        this.offset[i] = diff;
+      }
+      else 
+      {
+        scaled.z = 0f;
+        this.offset[i] = scaled;
+      }
     }
 
     return this;

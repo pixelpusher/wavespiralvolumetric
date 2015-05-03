@@ -28,6 +28,16 @@ import processing.opengl.*;
 import controlP5.*;
 import peasy.*;
 
+
+import wblut.math.*;
+import wblut.processing.*;
+import wblut.core.*;
+import wblut.hemesh.*;
+import wblut.geom.*;
+import wblut.hemesh.HET_Export;
+
+
+
 boolean fileChosen = false;
 PrintWriter output, outputRMS;
 float[] soundAmplitudes;
@@ -41,11 +51,12 @@ int wavSampleRate; // sample rate of Wave file
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
-float turns = 22;
-float distanceBetweenSpirals = 80;
-float spiralThickness = 80;  
+float turns = 6;
+float distanceBetweenSpirals = 160;
+float spiralThickness = 20;  
 float spiralRadius = 160;
-float spikiness = 160*3;
+//float spikiness = 160*3;
+float spikiness = 2;
 float minThickness = 0.125; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
@@ -56,10 +67,16 @@ int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encomp
 
 PeasyCam cam;
 
-
 Vec3D spiralCoords; 
 
 OffsetSpiral3D spiral;
+
+
+WB_Render render;
+WB_BSpline C;
+WB_Point[] points;
+HE_Mesh hemesh;
+
 
 
 static final float log10 = log(10);
@@ -87,11 +104,11 @@ float revLogScale(float val, float minVal, float maxVal)
 void setup()
 {
   size(1024, 768, P3D);
-
+ 
   cam = new PeasyCam(this, width);
   cam.setMinimumDistance(50);
   cam.setMaximumDistance(width*3);
-
+ 
   background(0);
 
   fill(200);
@@ -116,13 +133,26 @@ void createSpiral(boolean forPrint)
 {
 
   // set number of points
-  spiral.setNumPoints(rmsAmplitudes.length);
-
-  spiral.scaleEach(rmsAmplitudes);
+  spiral.setTurns(turns, false)
+    .setRadius(spiralRadius, false)
+      .setDistanceBetweenTurns(distanceBetweenSpirals, false)
+        .setEdgeThickness(spiralThickness, false)
+          .setNumPoints(rmsAmplitudes.length);
+  
+  float[] amps = new float[ rmsAmplitudes.length ];
+  for (int i=0; i<amps.length; i++)
+  {
+    amps[i] = rmsAmplitudes[i]*spikiness;
+  }
+  
+  
+  spiral.scaleEach(amps);
   
   // get PShape to visualise
-  spiralShape = spiralToShape(spiral);
-
+  //spiralShape = spiralToShape(spiral);
+  
+  makeTube(spiral);
+  
   loop(); // start drawing
 }
 
@@ -137,20 +167,19 @@ void draw()
   fill(200, 0, 200, 100);
   stroke(255);
 
-  lights();
+//  lights();
   //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
   // turn on backfce culling to make sure it looks as it will come out...
-  pushMatrix();
-  translate(width/2, height/2, zDist);
-
-  if (keyPressed && key == CODED && key == SHIFT)
+  
+  // DRAW HEMESH STUFF 
+  if (render != null)
   {
-    zDist += (pmouseY - mouseY);
-  } else
-  {
-    rotateX(map(0, height, mouseY, -PI/2, PI/2));
-    rotateY(map(0, width, mouseX, 0, TWO_PI));
+    render.drawEdges(hemesh);
+    noStroke();
+    render.drawFaces(hemesh);
   }
+
+  // DRAW PSHAPE STUFF
   PGL pgl = beginPGL();
   pgl.enable(PGL.CULL_FACE);
   pgl.cullFace(PGL.FRONT);
@@ -159,7 +188,7 @@ void draw()
     shape(spiralShape);
 
   endPGL(); // restores the GL defaults for Processing
-  popMatrix();
+  
 }
 
 
@@ -272,16 +301,20 @@ void keyReleased()
   }
   else if (key == 's')
   {
+  
     createSpiral(true);
+    
     String fileName = wavFileName + "-" +
       turns +"-" +
       distanceBetweenSpirals + "-" +
       spiralThickness + "-" +
       spiralRadius + "-" +
       spikiness + "-" +
-      wavSampleRate +
-      ".stl" ;
-    mesh.saveAsSTL(fileName );
+      wavSampleRate;
+    
+    if (mesh != null)  
+      mesh.saveAsSTL(fileName + ".stl" );
+    else if (hemesh != null) HET_Export.saveToOBJ(hemesh, ".", fileName+".obj");
 
     println("saved: " + fileName);
   } 
@@ -442,3 +475,36 @@ final PShape spiralToShape(Spiral3D spiral) {
   return retained;
 }
 
+
+void makeTube(Spiral3D spiral)
+{
+  // Several WB_Curve classes are in development. HEC_SweepTube provides
+  // a way of generating meshes from them.
+
+  ReadonlyVec3D[] spiralPoints = spiral.getPoints();
+
+  float radius = spiralThickness;
+  int steps = spiralPoints.length;
+
+
+  //Generate a BSpline
+  points=new WB_Point[spiralPoints.length];
+  
+  for (int i=0; i<points.length; i++)
+  {
+    ReadonlyVec3D v = spiralPoints[i];
+    points[i] = new WB_Point(v.x(), v.y(), v.z());
+  }
+  C = new WB_BSpline(points, 4);
+
+  HEC_SweepTube creator = new HEC_SweepTube();
+  creator.setCurve(C);//curve should be a WB_BSpline
+  creator.setRadius(radius);
+  creator.setSteps(steps);
+  creator.setFacets(8);
+  creator.setCap(true, true); // Cap start, cap end
+
+  hemesh=new HE_Mesh(creator); 
+  HET_Diagnosis.validate(hemesh);
+  render=new WB_Render(this);
+}
