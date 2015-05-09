@@ -33,7 +33,7 @@ import tubesP5.library.Tube;
 import toxi.geom.Vec3D;
 import toxi.processing.ToxiclibsSupport;
 
-
+import java.util.List;
 
 boolean fileChosen = false;
 PrintWriter output, outputRMS;
@@ -50,18 +50,19 @@ int diameterQuality = 10;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
-float turns = 6;
-float distanceBetweenSpirals = 160;
-float spiralThickness = 20;  
+float turns = 3;
+float distanceBetweenSpirals = 320;
+float spiralThickness = 12;  
 float spiralRadius = 160;
 //float spikiness = 160*3;
-float spikiness = 2;
+float spikiness = 15;
 float minThickness = 0.125; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 //int RMSSize = (int)(44100*1*1.1/500.0); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal 22
-int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
+int RMSSize = (int)(44100*3/(turns*250)); // total length is 24.472 which encompasses 22 whole strides
+//int RMSSize = 10;
 // with 100 rms divisions per 360 degrees (e.g. per turn)
 
 
@@ -384,8 +385,9 @@ void computeRMS()
   ampMax = MIN_FLOAT;
 
   rmsAmplitudes = new float[soundAmplitudes.length/RMSSize];
-
-  // println("calculating " + rmsAmplitudes.length + " samples");
+  println("RMS SIZE " + RMSSize);
+  println("calculating " + rmsAmplitudes.length + " samples");
+  
 
   int currentIndex = 0;
   int rmsArrayIndex = 0;
@@ -491,14 +493,26 @@ final PShape spiralToShape(Spiral3D spiral) {
 
 void makeTube(Spiral3D spiral)
 {
+  mesh = null;
+  spiralShape = null;
+  
   ReadonlyVec3D[] spiralPoints = spiral.getPoints();
+  
+  Spline3D s=new Spline3D();
+  
+  for (ReadonlyVec3D v : spiralPoints)
+  {
+    s.add(v);
+  }
+
+  s.computeVertices(8);
+  List<Vec3D> path=s.getDecimatedVertices(12);
 
   float radius = spiralThickness;
-  int steps = spiralPoints.length;
 
   LineStrip3D curve = new LineStrip3D();
 
-  for (ReadonlyVec3D v : spiralPoints)
+  for (ReadonlyVec3D v : path)
   {
     curve.add(v);
   }
