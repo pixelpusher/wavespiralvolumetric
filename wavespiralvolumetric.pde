@@ -46,11 +46,11 @@ TriangleMesh mesh = null;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 10;
+int diameterQuality = 4;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
-float turns = 3;
+float turns = 22;
 float distanceBetweenSpirals = 320;
 float spiralThickness = 12;  
 float spiralRadius = 160;
@@ -61,7 +61,7 @@ float minThickness = 0.125; // percentage, 0 - 1
 // metal
 //int RMSSize = (int)(44100*1*1.1/500.0); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal 22
-int RMSSize = (int)(44100*3/(turns*250)); // total length is 24.472 which encompasses 22 whole strides
+int RMSSize = (int)(44100*3/(turns*50)); // total length is 24.472 which encompasses 22 whole strides
 //int RMSSize = 10;
 // with 100 rms divisions per 360 degrees (e.g. per turn)
 
@@ -516,9 +516,11 @@ void makeTube(Spiral3D spiral)
   {
     curve.add(v);
   }
+  
+  println("curve verts: " + path.size());
 
   ParallelTransportFrame ptf = new ParallelTransportFrame(curve.getVertices());
-  Tube tube = new Tube(ptf, (int)spiralThickness, diameterQuality);
+  Tube tube = new Tube(ptf, (int)spiralThickness, /*diameterQuality*/8);
   mesh = tube;
 
   spiralShape = meshToRetained(mesh, false);
