@@ -2,8 +2,6 @@
 //  by evan raskob evanraskob@gmail.com
 // wave code uses code from http://code.google.com/p/musicg/
 //
-//  for 206: Tangible Media 2014 (BA Hons Design Interactions)
-//
 // Draw a base spiral and offset it by the sound volume (RMS)
 //
 // TODO
@@ -23,15 +21,17 @@ import toxi.geom.mesh.*;
 import toxi.math.*;
 import toxi.volume.*;
 import toxi.math.waves.*;
-import toxi.processing.*;
+//import toxi.processing.*;
 import processing.opengl.*;
 import peasy.*;
 import tubesP5.library.CurveFactory;
 import tubesP5.library.LineStrip3D;
+import tubesP5.library.SpiralLineStrip3D;
 import tubesP5.library.ParallelTransportFrame;
 import tubesP5.library.Tube;
+
 import toxi.geom.Vec3D;
-import toxi.processing.ToxiclibsSupport;
+//import toxi.processing.ToxiclibsSupport;
 
 
 
@@ -39,29 +39,32 @@ boolean fileChosen = false;
 PrintWriter output, outputRMS;
 float[] soundAmplitudes;
 float[] rmsAmplitudes;
-//ToxiclibsSupport gfx;
+
 PShape spiralShape = null;
 TriangleMesh mesh = null;
 
+ArrayList<Spline2D> profiles;
+
+boolean showFrames = false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 10;
+int diameterQuality = 20;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
 float turns = 6;
-float distanceBetweenSpirals = 160;
-float spiralThickness = 20;  
-float spiralRadius = 160;
+float distanceBetweenSpirals = 60;
+float spiralThickness = 50;
+float spiralRadius = 40;
 //float spikiness = 160*3;
-float spikiness = 2;
-float minThickness = 0.125; // percentage, 0 - 1
+float spikiness = 720;
+float minThickness = 0.05; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
-//int RMSSize = (int)(44100*1*1.1/500.0); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
+int RMSSize = (int)(44100.0*23.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal 22
-int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
+//int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
 // with 100 rms divisions per 360 degrees (e.g. per turn)
 
 
@@ -69,7 +72,8 @@ PeasyCam cam;
 
 Vec3D spiralCoords; 
 
-OffsetSpiral3D spiral;
+SpiralLineStrip3D spiral;
+ParallelTransportFrame ptf;
 
 static final float log10 = log(10);
 
@@ -107,7 +111,7 @@ void setup()
 
   text("hit space", 10, 20);
 
-  spiral = new OffsetSpiral3D();
+  spiral = new SpiralLineStrip3D();
 
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
@@ -123,7 +127,6 @@ void setup()
 
 void createSpiral(boolean forPrint)
 {
-
   // set number of points
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
@@ -131,14 +134,49 @@ void createSpiral(boolean forPrint)
         .setEdgeThickness(spiralThickness, false)
           .setNumPoints(rmsAmplitudes.length);
 
-  float[] amps = new float[ rmsAmplitudes.length ];
-  for (int i=0; i<amps.length; i++)
+
+  println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
+
+  profiles = new ArrayList<Spline2D>(rmsAmplitudes.length);
+  // TODO - generate circular profiles with one edge pushed slightly 
+  // outwards, as splines...
+
+
+  for (int i=0, j=rmsAmplitudes.length; i<j; i++)
   {
-    amps[i] = rmsAmplitudes[i]*spikiness;
+    //Polygon2D based on amplitude...
+    float triSize =  rmsAmplitudes[i]*spikiness;
+
+    //Polygon2D tri = (new Triangle2D(new Vec2D(-triSize, 0), new Vec2D(0, 0), new Vec2D(-triSize/2, -triSize/2)))
+    //  .toPolygon2D();
+
+    Spline2D spline = new Spline2D();
+
+    float angle = 0;
+    float inc = TWO_PI/diameterQuality;
+    float r = triSize + minThickness * spiralRadius;
+
+//    for (int k=0; k < diameterQuality; k++)
+//    {
+//        float x = r*cos(angle)*sin(angle/2);
+//        float y = r*sin(angle)*sin(angle/2);
+//        
+//        spline.add(x,y);
+//        
+//        angle += inc;
+//    } 
+
+    spline.add(r,0);
+    spline.add(r/2,r/4);
+    
+    spline.add(0,0);
+    spline.add(r/2,-r/4);
+    spline.add(r,0);
+    
+    profiles.add(spline);
+    
+    //profiles.add( new Spline2D(tri.vertices) );
   }
-
-
-  spiral.scaleEach(amps);
 
   // get PShape to visualise
   //spiralShape = spiralToShape(spiral);
@@ -151,7 +189,27 @@ void createSpiral(boolean forPrint)
 
 
 
-int zDist = 0;
+void drawFrames() {    
+  int tube_size = ptf.getVertices().size();
+  for (int i=0; i<tube_size-1; i++) {
+
+    stroke(255, 0, 0, 100);      
+    drawVectorOnPoint(ptf.vertices.get(i), ptf.getTangent(i));
+    stroke(0, 255, 0, 100);
+    drawVectorOnPoint(ptf.vertices.get(i), ptf.getBinormal(i));
+    stroke(0, 0, 255, 100);
+    drawVectorOnPoint(ptf.vertices.get(i), ptf.getNormal(i));
+  }
+}
+
+void drawVectorOnPoint(Vec3D pos, Vec3D vector) {
+  float k = 10;
+  beginShape(LINES);
+  vertex(pos.x, pos.y, pos.z);
+  vertex(pos.x + vector.x*k, pos.y + vector.y*k, pos.z + vector.z*k);
+  endShape();
+}
+
 
 void draw()
 {  
@@ -169,10 +227,15 @@ void draw()
   pgl.enable(PGL.CULL_FACE);
   pgl.cullFace(PGL.FRONT);
 
+  //pgl.disable(PGL.CULL_FACE);
+
   if (spiralShape != null)
     shape(spiralShape);
 
   endPGL(); // restores the GL defaults for Processing
+
+  if (showFrames && ptf != null)
+    drawFrames();
 }
 
 
@@ -277,7 +340,11 @@ void keyReleased()
     println("spiralRadius:" + spiralRadius);
     loop();
   }
-    else if (key == 's')
+  else if (key == 'f')
+  {
+    showFrames = !showFrames;
+  }
+  else if (key == 's')
   {
     createSpiral(true);
     String fileName = wavFileName + "-" +
@@ -291,8 +358,7 @@ void keyReleased()
     mesh.saveAsSTL(fileName );
 
     println("saved: " + fileName);
-  } 
-  else if (key==' ') 
+  } else if (key==' ') 
     if (!fileChosen) 
     {
       fileChosen = true;
@@ -489,22 +555,23 @@ final PShape spiralToShape(Spiral3D spiral) {
 }
 
 
-void makeTube(Spiral3D spiral)
+void makeTube(SpiralLineStrip3D spiral)
 {
-  ReadonlyVec3D[] spiralPoints = spiral.getPoints();
+  ptf = new ParallelTransportFrame(spiral.getVertices());
+  Tube tube = new Tube(ptf, 1, diameterQuality);
 
-  float radius = spiralThickness;
-  int steps = spiralPoints.length;
+  tube.splineQuality = 10; // change this!
 
-  LineStrip3D curve = new LineStrip3D();
 
-  for (ReadonlyVec3D v : spiralPoints)
+  try {
+    tube.compute(profiles);
+  }
+  catch (Exception e)
   {
-    curve.add(v);
+    println("Exception in MakeTube: " + e.getMessage());
+    e.printStackTrace();
   }
 
-  ParallelTransportFrame ptf = new ParallelTransportFrame(curve.getVertices());
-  Tube tube = new Tube(ptf, (int)spiralThickness, diameterQuality);
   mesh = tube;
 
   spiralShape = meshToRetained(mesh, false);
