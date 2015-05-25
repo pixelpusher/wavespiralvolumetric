@@ -27,7 +27,7 @@
 public class Spiral3D extends Vec3D {
 
   public Vec3D dir;  
-  public static boolean VERBOSE = true; // send spiral info to System.out
+  public boolean VERBOSE = true; // send spiral info to System.out
 
   protected Vec3D[] points;
   
