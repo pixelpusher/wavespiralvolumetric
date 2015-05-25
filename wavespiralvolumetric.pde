@@ -1,9 +1,7 @@
 // 3d sound spiral generator
 //  by evan raskob evanraskob@gmail.com
 // wave code uses code from http://code.google.com/p/musicg/
-//
-//  for 206: Tangible Media 2014 (BA Hons Design Interactions)
-//
+////
 // Draw a base spiral and offset it by the sound volume (RMS)
 //
 // TODO
@@ -49,6 +47,8 @@ int wavSampleRate; // sample rate of Wave file
 int diameterQuality = 4;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
+
+// these are in dimensionless units - need to figure out scaling for STL or OBJ export
 
 float turns = 22;
 float distanceBetweenSpirals = 320;
@@ -99,17 +99,19 @@ void setup()
   size(1024, 768, P3D);
 
   cam = new PeasyCam(this, width);
-  cam.setMinimumDistance(50);
-  cam.setMaximumDistance(width*3);
+  cam.setMinimumDistance(10);
+  cam.setMaximumDistance(width*15);
 
   background(0);
 
   fill(200);
-
+  stroke(255);
   text("hit space", 10, 20);
 
   spiral = new OffsetSpiral3D();
-
+  
+  // set spiral properties but don't recalculate 
+  
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
       .setDistanceBetweenTurns(distanceBetweenSpirals, false)
