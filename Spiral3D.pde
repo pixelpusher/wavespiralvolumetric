@@ -1,14 +1,9 @@
 /*
- *   __               .__       .__  ._____.           
- * _/  |_  _______  __|__| ____ |  | |__\_ |__   ______
- * \   __\/  _ \  \/  /  |/ ___\|  | |  || __ \ /  ___/
- *  |  | (  <_> >    <|  \  \___|  |_|  || \_\ \\___ \ 
- *  |__|  \____/__/\_ \__|\___  >____/__||___  /____  >
- *                   \/       \/             \/     \/ 
+ * Creates a 3D spiral form internally aligned to the Z axis. 
+ * Direction and axis are handled only when getting a point or list of points.
  *
- * Copyright (c) 2006-2011 Karsten Schmidt
- * (This file by Evan Raskob <info@pixelust.info>, based on other classes
- * from toxiclibs core.)
+ * Copyright (c) 2015 Evan Raskob <info@pixelist.info>
+ * (based in part on other classes from toxiclibs core by Karsten Schmidt.)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,12 +23,14 @@
  */
 
 
-// Direction and axis are handled only when getting a point or list of points
 
 public class Spiral3D extends Vec3D {
 
   public Vec3D dir;  
+  public boolean VERBOSE = true; // send spiral info to System.out
+
   protected Vec3D[] points;
+  
   private float radius;
   private int   numPoints;
   private float turns;
@@ -181,10 +178,13 @@ public class Spiral3D extends Vec3D {
       return this;
     }
 
-    println("total points: " + totalPoints +  " / " +  numPoints);
-    println("points per turn: " +  pointsPerTurn);
-    println("turns: " + turns);
-
+    if (VERBOSE)
+    {
+      System.out.println("total points: " + totalPoints +  " / " +  numPoints);
+      System.out.println("points per turn: " +  pointsPerTurn);
+      System.out.println("turns: " + turns);
+    }
+    
     // NOTE: Direction and axis are handled only when getting a point or list of points
 
     for (int currentPoint=0; currentPoint < totalPoints; currentPoint++)
@@ -199,12 +199,13 @@ public class Spiral3D extends Vec3D {
     }
 
     Vec3D topBottomDiff = points[points.length-1].sub(points[0]);
-    this.length = topBottomDiff.z; // aligning to Z axis internall makes this easier...
+    this.length = topBottomDiff.z; // aligning to Z axis internally makes this easier...
     
     return this;
   }
 
-/*
+/* //TODO-------------------------------
+
   public Mesh3D toMesh(int steps) {
     return toMesh(steps, 0);
   }

@@ -25,7 +25,9 @@ import toxi.volume.*;
 import toxi.math.waves.*;
 //import toxi.processing.*;
 import processing.opengl.*;
+import controlP5.*;
 import peasy.*;
+<<<<<<< HEAD
 import tubesP5.library.CurveFactory;
 import tubesP5.library.LineStrip3D;
 import tubesP5.library.SpiralLineStrip3D;
@@ -34,6 +36,16 @@ import tubesP5.library.Tube;
 
 import toxi.geom.Vec3D;
 //import toxi.processing.ToxiclibsSupport;
+=======
+
+
+import wblut.math.*;
+import wblut.processing.*;
+import wblut.core.*;
+import wblut.hemesh.*;
+import wblut.geom.*;
+import wblut.hemesh.HET_Export;
+>>>>>>> master
 
 
 
@@ -43,15 +55,22 @@ float[] soundAmplitudes;
 float[] rmsAmplitudes;
 
 PShape spiralShape = null;
+<<<<<<< HEAD
 TriangleMesh mesh = null;
 
 ArrayList<LineStrip2D> profiles;
 
 boolean showFrames = false;
+=======
+>>>>>>> master
 
+TriangleMesh mesh;
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
+<<<<<<< HEAD
 int diameterQuality = 20;
+=======
+>>>>>>> master
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
@@ -69,13 +88,20 @@ int RMSSize = (int)(44100.0*23.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!
 //int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
 // with 100 rms divisions per 360 degrees (e.g. per turn)
 
-
 PeasyCam cam;
 
 Vec3D spiralCoords; 
 
 SpiralLineStrip3D spiral;
 ParallelTransportFrame ptf;
+
+
+WB_Render render;
+WB_BSpline C;
+WB_Point[] points;
+HE_Mesh hemesh;
+
+
 
 static final float log10 = log(10);
 
@@ -102,11 +128,11 @@ float revLogScale(float val, float minVal, float maxVal)
 void setup()
 {
   size(1024, 768, P3D);
-
+ 
   cam = new PeasyCam(this, width);
   cam.setMinimumDistance(50);
   cam.setMaximumDistance(width*3);
-
+ 
   background(0);
 
   fill(200);
@@ -135,6 +161,7 @@ void createSpiral(boolean forPrint)
       .setDistanceBetweenTurns(distanceBetweenSpirals, false)
         .setEdgeThickness(spiralThickness, false)
           .setNumPoints(rmsAmplitudes.length);
+<<<<<<< HEAD
 
 
   println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
@@ -185,11 +212,23 @@ void createSpiral(boolean forPrint)
    
   }
 
+=======
+  
+  float[] amps = new float[ rmsAmplitudes.length ];
+  for (int i=0; i<amps.length; i++)
+  {
+    amps[i] = rmsAmplitudes[i]*spikiness;
+  }
+  
+  
+  spiral.scaleEach(amps);
+  
+>>>>>>> master
   // get PShape to visualise
   //spiralShape = spiralToShape(spiral);
-
+  
   makeTube(spiral);
-
+  
   loop(); // start drawing
 }
 
@@ -224,10 +263,17 @@ void draw()
   fill(200, 0, 200, 100);
   stroke(255);
 
-  lights();
+//  lights();
   //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
   // turn on backfce culling to make sure it looks as it will come out...
-
+  
+  // DRAW HEMESH STUFF 
+  if (render != null)
+  {
+    render.drawEdges(hemesh);
+    noStroke();
+    render.drawFaces(hemesh);
+  }
 
   // DRAW PSHAPE STUFF
   PGL pgl = beginPGL();
@@ -240,6 +286,7 @@ void draw()
     shape(spiralShape);
 
   endPGL(); // restores the GL defaults for Processing
+<<<<<<< HEAD
 
   if (showFrames && ptf != null)
     drawFrames();
@@ -281,6 +328,10 @@ void draw()
     hint(ENABLE_DEPTH_TEST);
   }
 } // end draw
+=======
+  
+}
+>>>>>>> master
 
 
 void keyReleased()
@@ -339,44 +390,50 @@ void keyReleased()
     noLoop();
     turns-=0.05;
     computeRMS();
-    println("turns:" + turns);
+   println("turns:" + turns);
     loop();
-  } else if (key == 'h')
+  } 
+  else if (key == 'h')
   {
     noLoop();
     spiralThickness/=1.1;
     computeRMS();
-    println("spiralThickness:" + spiralThickness);
+   println("spiralThickness:" + spiralThickness);
     loop();
-  } else if (key == 'H')
+  }
+  else if (key == 'H')
   {
     noLoop();
     spiralThickness*=1.1;
     computeRMS();
-    println("spiralThickness:" + spiralThickness);
+   println("spiralThickness:" + spiralThickness);
     loop();
-  } else if (key == 'm')
+  } 
+  else if (key == 'm')
   {
     noLoop();
     minThickness/=1.1;
     computeRMS();
     println("minThickness:" + minThickness);
     loop();
-  } else if (key == 'M')
+  }
+  else if (key == 'M')
   {
     noLoop();
     minThickness*=1.1;
     computeRMS();
     println("minThickness:" + minThickness);
     loop();
-  } else if (key == 'r')
+  } 
+  else if (key == 'r')
   {
     noLoop();
     spiralRadius /= 1.1;
     computeRMS();
     println("spiralRadius:" + spiralRadius);
     loop();
-  } else if (key == 'R')
+  }
+  else if (key == 'R')
   {
     noLoop();
     spiralRadius *= 1.1;
@@ -384,6 +441,7 @@ void keyReleased()
     println("spiralRadius:" + spiralRadius);
     loop();
   }
+<<<<<<< HEAD
   else if (key == 'f')
   {
     showFrames = !showFrames;
@@ -402,18 +460,24 @@ void keyReleased()
       ".png" ;
     saveFrame(fileName);
   }
+=======
+>>>>>>> master
   else if (key == 's')
   {
+  
     createSpiral(true);
+    
     String fileName = wavFileName + "-" +
       turns +"-" +
       distanceBetweenSpirals + "-" +
       spiralThickness + "-" +
       spiralRadius + "-" +
       spikiness + "-" +
-      wavSampleRate +
-      ".stl" ;
-    mesh.saveAsSTL(fileName );
+      wavSampleRate;
+    
+    if (mesh != null)  
+      mesh.saveAsSTL(fileName + ".stl" );
+    else if (hemesh != null) HET_Export.saveToOBJ(hemesh, ".", fileName+".obj");
 
     println("saved: " + fileName);
   } else if (key==' ') 
@@ -508,7 +572,7 @@ void computeRMS()
   ampMax = MIN_FLOAT;
 
   rmsAmplitudes = new float[soundAmplitudes.length/RMSSize];
-
+  
   // println("calculating " + rmsAmplitudes.length + " samples");
 
   int currentIndex = 0;
@@ -530,7 +594,7 @@ void computeRMS()
     {
       // convert data to float
       float data = (float)soundAmplitudes[currentIndex];
-
+      
       // debug
       if (rmsArrayIndex == rmsAmplitudes.length-1)
       {
@@ -547,49 +611,10 @@ void computeRMS()
     ampMax = max(ampMax, RMSAve);
 
     rmsAmplitudes[rmsArrayIndex++] = RMSAve;
-
+    
     // println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
   }
   createSpiral(true);
-}
-
-
-PShape meshToRetained(Mesh3D mesh, boolean smth) {        
-  PShape retained = createShape();
-  // println("triangles1");
-  retained.enableStyle();
-  retained.beginShape(TRIANGLE_STRIP);
-  retained.fill(200, 0, 200);
-  //retained.stroke(0);
-  retained.noStroke();
-  retained.ambient(50);
-  retained.emissive(10);
-  retained.specular(50);
-
-  // println("triangles2");
-  if (smth) {
-    mesh.computeVertexNormals();
-
-    for (Face f : mesh.getFaces ()) {
-      retained.normal(f.a.normal.x, f.a.normal.y, f.a.normal.z);
-      retained.vertex(f.a.x, f.a.y, f.a.z);
-      retained.normal(f.b.normal.x, f.b.normal.y, f.b.normal.z);
-      retained.vertex(f.b.x, f.b.y, f.b.z);
-      retained.normal(f.c.normal.x, f.c.normal.y, f.c.normal.z);
-      retained.vertex(f.c.x, f.c.y, f.c.z);
-    }
-  } else {
-    int i=0;
-    for (Face f : mesh.getFaces ()) {
-      // println("triangles"+ i++);
-      retained.normal(f.normal.x, f.normal.y, f.normal.z);
-      retained.vertex(f.a.x, f.a.y, f.a.z);
-      retained.vertex(f.b.x, f.b.y, f.b.z);
-      retained.vertex(f.c.x, f.c.y, f.c.z);
-    }
-  }
-  retained.endShape();
-  return retained;
 }
 
 
@@ -615,12 +640,20 @@ final PShape spiralToShape(Spiral3D spiral) {
 
 void makeTube(SpiralLineStrip3D spiral)
 {
+<<<<<<< HEAD
   ptf = new ParallelTransportFrame(spiral.getVertices());
   Tube tube = new Tube(ptf, 1, diameterQuality);
+=======
+  // Several WB_Curve classes are in development. HEC_SweepTube provides
+  // a way of generating meshes from them.
+
+  ReadonlyVec3D[] spiralPoints = spiral.getPoints();
+>>>>>>> master
 
   tube.splineQuality = 10; // change this!
 
 
+<<<<<<< HEAD
   try {
     tube.compute(profiles);
   }
@@ -633,5 +666,26 @@ void makeTube(SpiralLineStrip3D spiral)
   mesh = tube;
 
   spiralShape = meshToRetained(mesh, false);
-}
+=======
+  //Generate a BSpline
+  points=new WB_Point[spiralPoints.length];
+  
+  for (int i=0; i<points.length; i++)
+  {
+    ReadonlyVec3D v = spiralPoints[i];
+    points[i] = new WB_Point(v.x(), v.y(), v.z());
+  }
+  C = new WB_BSpline(points, 4);
 
+  HEC_SweepTube creator = new HEC_SweepTube();
+  creator.setCurve(C);//curve should be a WB_BSpline
+  creator.setRadius(radius);
+  creator.setSteps(steps);
+  creator.setFacets(8);
+  creator.setCap(true, true); // Cap start, cap end
+
+  hemesh=new HE_Mesh(creator); 
+  HET_Diagnosis.validate(hemesh);
+  render=new WB_Render(this);
+>>>>>>> master
+}
