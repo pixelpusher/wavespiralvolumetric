@@ -5,15 +5,17 @@
 // Draw a base spiral and offset it by the sound volume (RMS)
 //
 // TODO
+// - end and start caps
+// - bounding box check - model size display too!! How bug are these??
+// - auto camera zoom on load?
+// - how about a REPL for commands instead of stupid key presses
 // - need flat base for stand and for printing properly...
 // - gaps in between spiral sections don't really work on Makerbot, too
 // small to pick out material and mushed together with other support material
 // - how about filling it to the max spikiness in between shapes, so it is recessed rather 
-// than filled
+// than filled?
 // - or inner removal of material rather than exterior extrusion
-// -  base RMS on sample seconds and points per 360 (e.g. turns and resolution) 
-// and sample rate rather than arbitrary numbers...
-//
+
 
 import java.io.*;
 import toxi.geom.*;
@@ -43,7 +45,7 @@ float[] rmsAmplitudes;
 PShape spiralShape = null;
 TriangleMesh mesh = null;
 
-ArrayList<Spline2D> profiles;
+ArrayList<LineStrip2D> profiles;
 
 boolean showFrames = false;
 
@@ -54,11 +56,11 @@ int diameterQuality = 20;
 //metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
 
 float turns = 6;
-float distanceBetweenSpirals = 60;
-float spiralThickness = 50;
-float spiralRadius = 40;
+float distanceBetweenSpirals = 60/10;
+float spiralThickness = 50/10;
+float spiralRadius = 40/10;
 //float spikiness = 160*3;
-float spikiness = 720;
+float spikiness = 720/10;
 float minThickness = 0.05; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
@@ -137,7 +139,7 @@ void createSpiral(boolean forPrint)
 
   println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
 
-  profiles = new ArrayList<Spline2D>(rmsAmplitudes.length);
+  profiles = new ArrayList<LineStrip2D>(rmsAmplitudes.length);
   // TODO - generate circular profiles with one edge pushed slightly 
   // outwards, as splines...
 
@@ -173,9 +175,14 @@ void createSpiral(boolean forPrint)
     spline.add(r/2,-r/4);
     spline.add(r,0);
     
-    profiles.add(spline);
+    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
     
-    //profiles.add( new Spline2D(tri.vertices) );
+    // TODO - add Simplify method to strip
+     
+    profiles.add(strip);
+   
+   
+   
   }
 
   // get PShape to visualise
@@ -236,7 +243,44 @@ void draw()
 
   if (showFrames && ptf != null)
     drawFrames();
-}
+  
+  
+  if (true)
+  {  
+    // draw info overlay
+    
+    int fontsize = 18;
+    int startX = fontsize;
+    int startY = 2*fontsize;
+    
+    hint(ENABLE_NATIVE_FONTS);
+    
+    
+    hint(DISABLE_DEPTH_TEST);
+    cam.beginHUD();
+
+    textSize(fontsize);
+    textAlign(LEFT, BOTTOM);
+    
+    fill(255);
+    text("file: " + wavFileName, startX, startY );
+    startY += fontsize;
+    text("turns: " + turns, startX, startY );
+    startY += fontsize;
+    text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
+    startY += fontsize;
+    text("spiralThickness: " + spiralThickness, startX, startY );
+    startY += fontsize;
+    text("spikiness: " + spikiness, startX, startY );
+    startY += fontsize;
+    text("wavSampleRate: " + wavSampleRate, startX, startY );
+    startY += fontsize;
+    text("RMSSize: " + RMSSize, startX, startY );
+        
+    cam.endHUD();
+    hint(ENABLE_DEPTH_TEST);
+  }
+} // end draw
 
 
 void keyReleased()
@@ -343,6 +387,20 @@ void keyReleased()
   else if (key == 'f')
   {
     showFrames = !showFrames;
+  }
+  else if (key == 'F')
+  {
+    String fileName = wavFileName + "-" +
+      turns +"-" +
+      distanceBetweenSpirals + "-" +
+      spiralThickness + "-" +
+      spiralRadius + "-" +
+      spikiness + "-" +
+      RMSSize + "-" +
+      wavSampleRate +
+      "--" + hour() + "." + minute() + "." + second() +
+      ".png" ;
+    saveFrame(fileName);
   }
   else if (key == 's')
   {
