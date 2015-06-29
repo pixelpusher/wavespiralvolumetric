@@ -30,7 +30,7 @@ import tubesP5.library.CurveFactory;
 import tubesP5.library.LineStrip3D;
 import tubesP5.library.SpiralLineStrip3D;
 import tubesP5.library.ParallelTransportFrame;
-import tubesP5.library.Tube;
+import tubesP5.library.OrganicProfileTube;
 
 import toxi.geom.Vec3D;
 //import toxi.processing.ToxiclibsSupport;
@@ -51,20 +51,22 @@ boolean showFrames = false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 20;
+int diameterQuality = 8;
 
-//metal 3 sec - 6,0,60,90,120,0.125,44100*1*1.1/500.0
+//metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 float turns = 6;
-float distanceBetweenSpirals = 60/10;
-float spiralThickness = 50/10;
-float spiralRadius = 40/10;
+float distanceBetweenSpirals = 60/5;
+float spiralThickness = 50/5;
+float spiralRadius = 40/5;
 //float spikiness = 160*3;
-float spikiness = 720/10;
-float minThickness = 0.05; // percentage, 0 - 1
+float spikiness = 720/5;
+float minThickness = 0.15; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
-int RMSSize = (int)(44100.0*23.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
+int RMSSize =1; // will be overriden in fileSelected() function
+
+//(int)(44100.0*12.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal 22
 //int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
 // with 100 rms divisions per 360 degrees (e.g. per turn)
@@ -76,6 +78,7 @@ Vec3D spiralCoords;
 
 SpiralLineStrip3D spiral;
 ParallelTransportFrame ptf;
+OrganicProfileTube tube;
 
 static final float log10 = log(10);
 
@@ -139,7 +142,25 @@ void createSpiral(boolean forPrint)
 
   println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
 
-  profiles = new ArrayList<LineStrip2D>(rmsAmplitudes.length);
+
+  // get PShape to visualise
+  //spiralShape = spiralToShape(spiral);
+
+  if (ptf == null)
+    ptf = new ParallelTransportFrame(spiral.getVertices());
+  else
+    ptf.setVertices(spiral.getVertices());
+
+  if (tube == null)
+  {
+    tube = new OrganicProfileTube(ptf);
+  }
+
+  ArrayList<LineStrip2D> profiles = tube.getProfiles();
+  profiles.clear();
+  profiles.ensureCapacity(rmsAmplitudes.length);
+
+
   // TODO - generate circular profiles with one edge pushed slightly 
   // outwards, as splines...
 
@@ -158,37 +179,44 @@ void createSpiral(boolean forPrint)
     float inc = TWO_PI/diameterQuality;
     float r = triSize + minThickness * spiralRadius;
 
-//    for (int k=0; k < diameterQuality; k++)
-//    {
-//        float x = r*cos(angle)*sin(angle/2);
-//        float y = r*sin(angle)*sin(angle/2);
-//        
-//        spline.add(x,y);
-//        
-//        angle += inc;
-//    } 
+    //    for (int k=0; k < diameterQuality; k++)
+    //    {
+    //        float x = r*cos(angle)*sin(angle/2);
+    //        float y = r*sin(angle)*sin(angle/2);
+    //        
+    //        spline.add(x,y);
+    //        
+    //        angle += inc;
+    //    } 
 
-    spline.add(r,0);
-    spline.add(r/2,r/4);
-    
-    spline.add(0,0);
-    spline.add(r/2,-r/4);
-    spline.add(r,0);
-    
+    spline.add(r, 0);
+    spline.add(r/2, r/4);
+
+    spline.add(0, 0);
+    spline.add(r/2, -r/4);
+    spline.add(r, 0);
+
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-    
+
     // TODO - add Simplify method to strip
-     
+
+    // add profile to internal tube list of profiles 
     profiles.add(strip);
-   
-   
-   
   }
 
-  // get PShape to visualise
-  //spiralShape = spiralToShape(spiral);
 
-  makeTube(spiral);
+  try {
+    tube.compute();
+  }
+  catch (Exception e)
+  {
+    println("Exception in MakeSpiral: " + e.getMessage());
+    e.printStackTrace();
+  }
+
+  mesh = tube; // so we can draw it
+
+  spiralShape = meshToRetained(mesh, false);
 
   loop(); // start drawing
 }
@@ -243,25 +271,24 @@ void draw()
 
   if (showFrames && ptf != null)
     drawFrames();
-  
-  
+
+
   if (true)
   {  
     // draw info overlay
-    
+
     int fontsize = 18;
     int startX = fontsize;
     int startY = 2*fontsize;
-    
-    hint(ENABLE_NATIVE_FONTS);
-    
-    
+
+
+    noLights();
     hint(DISABLE_DEPTH_TEST);
     cam.beginHUD();
 
     textSize(fontsize);
     textAlign(LEFT, BOTTOM);
-    
+
     fill(255);
     text("file: " + wavFileName, startX, startY );
     startY += fontsize;
@@ -276,7 +303,7 @@ void draw()
     text("wavSampleRate: " + wavSampleRate, startX, startY );
     startY += fontsize;
     text("RMSSize: " + RMSSize, startX, startY );
-        
+
     cam.endHUD();
     hint(ENABLE_DEPTH_TEST);
   }
@@ -288,14 +315,22 @@ void keyReleased()
   if (key == '+')
   {
     noLoop();
-    RMSSize *=1.1;
+    if (RMSSize < 10) ++RMSSize;
+    else
+      RMSSize *=1.1;
     println("RMSSize:" + RMSSize);
     computeRMS();
     loop();
   } else if (key == '-')
   {
     noLoop();
-    RMSSize /=1.1;
+    if (RMSSize < 10)
+    {
+     if (RMSSize > 1) --RMSSize;
+    }
+    else
+      RMSSize /= 1.1;
+      
     computeRMS();
     println("RMSSize:" + RMSSize);
     loop();
@@ -383,14 +418,18 @@ void keyReleased()
     computeRMS();
     println("spiralRadius:" + spiralRadius);
     loop();
-  }
-  else if (key == 'f')
+  } else if (key == 'f')
   {
     showFrames = !showFrames;
-  }
+  } 
   else if (key == 'F')
   {
-    String fileName = wavFileName + "-" +
+    // get first part of filename, ignore extension
+    String[] wavname = split(wavFileName, '.');
+
+    String fileName = wavname[0] +
+      "--" + nf(hour(), 2) + "." + nf(minute(), 2) + "." + nf(second(), 2) + 
+      "-" +
       turns +"-" +
       distanceBetweenSpirals + "-" +
       spiralThickness + "-" +
@@ -398,14 +437,15 @@ void keyReleased()
       spikiness + "-" +
       RMSSize + "-" +
       wavSampleRate +
-      "--" + hour() + "." + minute() + "." + second() +
       ".png" ;
     saveFrame(fileName);
-  }
-  else if (key == 's')
+  } else if (key == 's')
   {
-    createSpiral(true);
-    String fileName = wavFileName + "-" +
+    
+    // get first part of filename, ignore extension
+    String[] wavname = split(wavFileName, '.');
+
+    String fileName = wavname[0] +
       turns +"-" +
       distanceBetweenSpirals + "-" +
       spiralThickness + "-" +
@@ -416,13 +456,23 @@ void keyReleased()
     mesh.saveAsSTL(fileName );
 
     println("saved: " + fileName);
-  } else if (key==' ') 
+  } else if (key==' ')
+  { 
     if (!fileChosen) 
     {
       fileChosen = true;
       background(0, 200, 0);
       selectInput("Select a file to process:", "fileSelected");
     }
+  } else if (key == '`' && tube != null)
+  {
+    if (tube.getStrategy() == OrganicProfileTube.TANGENT_FRAMES)
+      tube.setStrategy( OrganicProfileTube.PERP_FRAMES ); 
+    else
+      tube.setStrategy( OrganicProfileTube.TANGENT_FRAMES );
+
+    computeRMS();
+  }
 }
 
 
@@ -464,6 +514,10 @@ void fileSelected(File selection)
         NormalizedSampleAmplitudes nsa = new NormalizedSampleAmplitudes(wavFile);
         double[] amps = nsa.getNormalizedAmplitudes();
         soundAmplitudes = new float[amps.length];
+        
+        // initialize to 20 points per turn, to start
+        RMSSize = int(amps.length / (100.0 * turns)); 
+        
         for (int i=0; i<amps.length; i++)
           soundAmplitudes[i] = (float) amps[i];
 
@@ -610,28 +664,5 @@ final PShape spiralToShape(Spiral3D spiral) {
 
   retained.endShape();
   return retained;
-}
-
-
-void makeTube(SpiralLineStrip3D spiral)
-{
-  ptf = new ParallelTransportFrame(spiral.getVertices());
-  Tube tube = new Tube(ptf, 1, diameterQuality);
-
-  tube.splineQuality = 10; // change this!
-
-
-  try {
-    tube.compute(profiles);
-  }
-  catch (Exception e)
-  {
-    println("Exception in MakeTube: " + e.getMessage());
-    e.printStackTrace();
-  }
-
-  mesh = tube;
-
-  spiralShape = meshToRetained(mesh, false);
 }
 
