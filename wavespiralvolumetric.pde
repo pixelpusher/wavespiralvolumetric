@@ -144,7 +144,7 @@ void createSpiral(boolean forPrint)
 
 
   // get PShape to visualise
-  //spiralShape = spiralToShape(spiral);
+  //spiralShape = spiralToShape(spdiral);
 
   if (ptf == null)
     ptf = new ParallelTransportFrame(spiral.getVertices());
@@ -260,7 +260,7 @@ void draw()
   // DRAW PSHAPE STUFF
   PGL pgl = beginPGL();
   pgl.enable(PGL.CULL_FACE);
-  pgl.cullFace(PGL.FRONT);
+  pgl.cullFace(PGL.BACK);
 
   //pgl.disable(PGL.CULL_FACE);
 
