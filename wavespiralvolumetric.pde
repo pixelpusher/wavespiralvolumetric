@@ -18,6 +18,7 @@
 
 
 import java.io.*;
+import java.util.Iterator;
 import toxi.geom.*;
 import toxi.geom.mesh.*;
 import toxi.math.*;
@@ -43,11 +44,13 @@ float[] soundAmplitudes;
 float[] rmsAmplitudes;
 
 PShape spiralShape = null;
+PShape profileShape = null;
 TriangleMesh mesh = null;
 
 ArrayList<LineStrip2D> profiles;
 
 boolean showFrames = false;
+boolean drawProfiles = false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
@@ -104,11 +107,12 @@ float revLogScale(float val, float minVal, float maxVal)
 
 void setup()
 {
-  size(1024, 768, P3D);
+  size(1280, 960, P3D);
 
   cam = new PeasyCam(this, width);
-  cam.setMinimumDistance(50);
-  cam.setMaximumDistance(width*3);
+  cam.setMinimumDistance(0);
+  cam.setMaximumDistance(width*20);
+  cam.setResetOnDoubleClick(true);
 
   background(0);
 
@@ -188,16 +192,32 @@ void createSpiral(boolean forPrint)
     //        
     //        angle += inc;
     //    } 
-
-    spline.add(r, 0);
-    spline.add(r/2, r/4);
+/*
+    spline.add(0, 0);
+    spline.add(r/3, r/4);
+    spline.add(0, r);
+    spline.add(-r/3, r/4);
+    spline.add(0, 0); // close spline
+*/
 
     spline.add(0, 0);
-    spline.add(r/2, -r/4);
-    spline.add(r, 0);
+    spline.add(minThickness * spiralRadius, r/3);
+    spline.add(minThickness * spiralRadius/2, r);
+    spline.add(-minThickness * spiralRadius, r/3);
+    spline.add(0, 0); // close spline
+
 
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-
+    /*
+    if (i == 20)
+     {
+     println("profile points:");
+     for (Vec2D p : strip)
+     {
+     println(p);
+     }
+     }
+     */
     // TODO - add Simplify method to strip
 
     // add profile to internal tube list of profiles 
@@ -217,6 +237,9 @@ void createSpiral(boolean forPrint)
   mesh = tube; // so we can draw it
 
   spiralShape = meshToRetained(mesh, false);
+  profileShape = tubeProfilesToShape(tube);
+
+  //cam.setDistance(spiral.getLength()/2);
 
   loop(); // start drawing
 }
@@ -264,10 +287,15 @@ void draw()
 
   //pgl.disable(PGL.CULL_FACE);
 
-  if (spiralShape != null)
-    shape(spiralShape);
+  if (!drawProfiles)
+  {
+    if (spiralShape != null)
+      shape(spiralShape);
+  }
 
   endPGL(); // restores the GL defaults for Processing
+
+  noLights();
 
   if (showFrames && ptf != null)
     drawFrames();
@@ -282,8 +310,14 @@ void draw()
     int startY = 2*fontsize;
 
 
-    noLights();
     hint(DISABLE_DEPTH_TEST);
+
+    if (drawProfiles)
+      if (profileShape != null)
+        shape(profileShape);
+
+
+
     cam.beginHUD();
 
     textSize(fontsize);
@@ -318,7 +352,7 @@ void keyReleased()
     if (RMSSize < 10) ++RMSSize;
     else
       RMSSize *=1.1;
-    println("RMSSize:" + RMSSize);
+    //println("RMSSize:" + RMSSize);
     computeRMS();
     loop();
   } else if (key == '-')
@@ -326,13 +360,12 @@ void keyReleased()
     noLoop();
     if (RMSSize < 10)
     {
-     if (RMSSize > 1) --RMSSize;
-    }
-    else
+      if (RMSSize > 1) --RMSSize;
+    } else
       RMSSize /= 1.1;
-      
+
     computeRMS();
-    println("RMSSize:" + RMSSize);
+    //println("RMSSize:" + RMSSize);
     loop();
   } else if (key == 'D')
   {
@@ -418,11 +451,13 @@ void keyReleased()
     computeRMS();
     println("spiralRadius:" + spiralRadius);
     loop();
+  } else if (key == 'z')
+  {
+    drawProfiles = !drawProfiles;
   } else if (key == 'f')
   {
     showFrames = !showFrames;
-  } 
-  else if (key == 'F')
+  } else if (key == 'F')
   {
     // get first part of filename, ignore extension
     String[] wavname = split(wavFileName, '.');
@@ -441,7 +476,7 @@ void keyReleased()
     saveFrame(fileName);
   } else if (key == 's')
   {
-    
+
     // get first part of filename, ignore extension
     String[] wavname = split(wavFileName, '.');
 
@@ -514,10 +549,10 @@ void fileSelected(File selection)
         NormalizedSampleAmplitudes nsa = new NormalizedSampleAmplitudes(wavFile);
         double[] amps = nsa.getNormalizedAmplitudes();
         soundAmplitudes = new float[amps.length];
-        
+
         // initialize to 20 points per turn, to start
         RMSSize = int(amps.length / (100.0 * turns)); 
-        
+
         for (int i=0; i<amps.length; i++)
           soundAmplitudes[i] = (float) amps[i];
 
@@ -613,11 +648,11 @@ PShape meshToRetained(Mesh3D mesh, boolean smth) {
   // println("triangles1");
   retained.enableStyle();
   retained.beginShape(TRIANGLE_STRIP);
-  retained.fill(200, 0, 200);
+  retained.fill(220, 10, 220);
   //retained.stroke(0);
   retained.noStroke();
-  retained.ambient(50);
-  retained.emissive(10);
+  retained.ambient(80);
+  retained.emissive(20);
   retained.specular(50);
 
   // println("triangles2");
@@ -647,7 +682,41 @@ PShape meshToRetained(Mesh3D mesh, boolean smth) {
 }
 
 
-final PShape spiralToShape(Spiral3D spiral) {        
+PShape tubeProfilesToShape( OrganicProfileTube tube)
+{
+  PShape retained = createShape();
+
+  retained.enableStyle();
+  retained.beginShape(LINES);
+  //retained.fill(120,120,0,80);
+  retained.noFill();
+  retained.stroke(255, 180);
+  retained.strokeWeight(2);
+
+  ArrayList<LineStrip3D> paths = tube.pathProfiles;
+
+  for (LineStrip3D path : paths)
+  {
+    Iterator<Vec3D> iter = path.iterator();
+    Vec3D currentP = iter.next();
+    Vec3D nextP = currentP;
+
+    while (iter.hasNext ()) 
+    {
+      nextP = iter.next();
+      retained.vertex(currentP.x(), currentP.y(), currentP.z());
+      retained.vertex(nextP.x(), nextP.y(), nextP.z());
+      currentP = nextP;
+    }
+  }
+
+  retained.endShape();
+  return retained;
+}
+
+
+
+PShape spiralToShape(Spiral3D spiral) {        
   PShape retained = createShape();
 
   retained.enableStyle();
