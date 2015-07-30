@@ -235,7 +235,8 @@ println("DEBUG:: tanvec2");
 
   for (int i=0; i < numPoints-1; i++)
   {
-    LineStrip2D profilePoints = profiles.get(i);
+    LineStrip2D profilePointsC = profiles.get(i);
+    LineStrip2D profilePointsN = profiles.get(i+1);
     LineStrip3D2 profileOnCurveC; // current profile points on the curve
 
     if (i == 0)
@@ -257,8 +258,11 @@ println("DEBUG:: tanvec2");
     // now loop through and calculate current & next profile points
     for (int j=0; j < numProfilePoints-1; j++)
     {
-      Vec2D pp = profilePoints.get(j);
-      Vec2D ppn = profilePoints.get(j+1);
+      Vec2D ppC = profilePointsC.get(j);
+      Vec2D ppnC = profilePointsC.get(j+1);
+
+      Vec2D ppN = profilePointsN.get(j);
+      Vec2D ppnN = profilePointsN.get(j+1);
 
       ReadonlyVec3D v0 = spiral.get(i);
       ReadonlyVec3D v1 = outwardVecs.get(i);
@@ -278,17 +282,17 @@ println("DEBUG:: tanvec2");
       else
       {
         // current curve point and current in current profile (1)
-        float x0 = v0.x() + pp.y()*v1.x();  
-        float y0 = v0.y() + pp.y()*v1.y();
-        float z0 = v0.z() + pp.x();
+        float x0 = v0.x() + ppC.y()*v1.x();  
+        float y0 = v0.y() + ppC.y()*v1.y();
+        float z0 = v0.z() + ppC.x();
 
         ppOnCurve1 = new Vec3D(x0, y0, z0);
         profileOnCurveC.add( ppOnCurve1 );
 
         // next curve point and next in profile (3)
-        float x0n = v0n.x() + pp.y()*v1n.x();  
-        float y0n = v0n.y() + pp.y()*v1n.y();
-        float z0n = v0n.z() + pp.x();
+        float x0n = v0n.x() + ppN.y()*v1n.x();  
+        float y0n = v0n.y() + ppN.y()*v1n.y();
+        float z0n = v0n.z() + ppN.x();
 
         ppOnCurve3 = new Vec3D(x0n, y0n, z0n);
 
@@ -296,22 +300,22 @@ println("DEBUG:: tanvec2");
       }
 
       // (2) -- next in current profile
-      float x1 = v0.x() + ppn.y()*v1.x();  
-      float y1 = v0.y() + ppn.y()*v1.y();
-      float z1 = v0.z() + ppn.x();
+      float x1 = v0.x() + ppnC.y()*v1.x();  
+      float y1 = v0.y() + ppnC.y()*v1.y();
+      float z1 = v0.z() + ppnC.x();
 
       ppOnCurve2 = new Vec3D(x1, y1, z1);
       profileOnCurveC.add( ppOnCurve2 );
 
       // (4)
-      float x1n = v0n.x() + ppn.y()*v1n.x();  
-      float y1n = v0n.y() + ppn.y()*v1n.y();
-      float z1n = v0n.z() + ppn.x();
+      float x1n = v0n.x() + ppnN.y()*v1n.x();  
+      float y1n = v0n.y() + ppnN.y()*v1n.y();
+      float z1n = v0n.z() + ppnN.x();
 
       ppOnCurve4 = new Vec3D(x1n, y1n, z1n);
       profileOnCurveN.add( ppOnCurve4 );
 
-      retained.fill(random(0, 255), random(0, 255), random(0, 255));
+      retained.fill(random(100, 255), random(50, 255), random(0, 80));
 
       // 1-3-2
       retained.vertex( ppOnCurve1.x(), ppOnCurve1.y(), ppOnCurve1.z());
@@ -351,6 +355,7 @@ println("DEBUG:: tanvec2");
 
   // profile points go clockwise, so we go backwards
   int j=numProfilePoints;
+
   while (j>1)
   {
     --j;
@@ -742,10 +747,10 @@ void computeRMS()
       float data = (float)soundAmplitudes[currentIndex];
 
       // debug
-      if (rmsArrayIndex == rmsAmplitudes.length-1)
+      /*if (rmsArrayIndex == rmsAmplitudes.length-1)
       {
         // println("data[" + currentIndex + "]=" + data);
-      }
+      }*/
       RMSSum += data*data; // add square of data to sum
       currentIndex++; 
       RMSIndex++;
@@ -758,7 +763,7 @@ void computeRMS()
 
     rmsAmplitudes[rmsArrayIndex++] = RMSAve;
 
-    // println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
+    //println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
   }
   createSpiral(true);
 }

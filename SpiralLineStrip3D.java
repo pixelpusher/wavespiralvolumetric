@@ -201,10 +201,13 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
 
       return this;
     }
-
+    
     System.out.println("total points: " + totalPoints +  " / " +  this.numPoints);
+    if (totalPoints != this.numPoints) System.out.println("SpiralLineStrip3D WARNING:: total points and numPoints not the same due to turns. Updating them.");
     System.out.println("points per turn: " +  pointsPerTurn);
     System.out.println("turns: " + this.turns);
+
+    this.numPoints = totalPoints;
 
     // NOTE: Direction and axis are handled only when getting a point or list of points
 
