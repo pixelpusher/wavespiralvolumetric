@@ -4,16 +4,10 @@ PShape meshToRetained(Mesh3D mesh, boolean smth) {
   
   retained.enableStyle();
   retained.beginShape(TRIANGLES);
-  retained.fill(220, 10, 220);
-  //retained.stroke(0);
-  retained.noStroke();
-  retained.ambient(80);
-  retained.emissive(20);
-  retained.specular(50);
-
+  mesh.computeFaceNormals();
   
-  if (smth) {
-    mesh.computeFaceNormals();
+  if (smth) 
+  {  
     mesh.computeVertexNormals();
 
     for (Face f : mesh.getFaces ()) {

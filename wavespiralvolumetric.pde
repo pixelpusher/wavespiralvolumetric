@@ -5,6 +5,7 @@
 // Draw a base spiral and offset it by the sound volume (RMS)
 //
 // TODO
+// - fix bounding box pshape display - not showing due to some PShape thing?
 // - bounding box check - model size display too!! How bug are these??
 // - how about a REPL for commands instead of stupid key presses
 // - need flat base for stand and for printing properly...
@@ -36,18 +37,19 @@ ArrayList<LineStrip3D2> profilesOnCurve; // the 3D profiles fitted to the underl
 
 PShape spiralShape = null;
 PShape profileShape = null;
+PShape printerBoundingBox = null;
 TriangleMesh mesh = null;
 
 boolean drawProfiles = false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 3;
+int diameterQuality = 4;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 float turns = 6;
-float distanceBetweenSpirals = 10; // in mm
+float distanceBetweenSpirals = 30; // in mm
 float spiralThickness = 150/(turns*6); // in mm
 float spiralRadius = 80; // in mm
 //float spikiness = 160*3;
@@ -99,6 +101,18 @@ void setup()
 
   background(0);
   fill(200);
+
+  //
+  // create printer bounding box shape for reference
+  Vec3D printerSizeInMM = new Vec3D(285, 153, 155); // Makerbot replicator 2
+  TriangleMesh b = (TriangleMesh)new AABB(new Vec3D(), printerSizeInMM).toMesh(); 
+  //b.transform(new Matrix4x4().translateSelf(pos.x,pos.y,pos.z));  // if we need to move it
+  printerBoundingBox = meshToRetained(b, false);
+  printerBoundingBox.setFill(false);
+  int c = color(255,180);
+  printerBoundingBox.setStroke(c);
+  printerBoundingBox.setStrokeWeight(1);
+
 
   text("hit space", 10, 20);
 
@@ -153,8 +167,7 @@ void createSpiral(boolean forPrint)
     tanVecs.add(new Vec3D(0, 0, 0));
   }
 
-println("DEBUG:: tanvec2");
-  for (int i=1; i < numPoints-2; i++)
+  for (int i=1; i < numPoints-1; i++)
   {
     Vec3D tanVec = tanVecs.get(i);
     Vec3D outVec = outwardVecs.get(i);
@@ -193,7 +206,7 @@ println("DEBUG:: tanvec2");
 
   println("DEBUG:: calculating profiles");
 
-  for (int i=0, j=rmsAmplitudes.length; i<j; i++)
+  for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
 
@@ -202,8 +215,8 @@ println("DEBUG:: tanvec2");
     float thick = spiral.getEdgeThickness();
 
     spline.add(0, 0);
-    spline.add(thick*2, profileLength/4);
-    spline.add(thick*3, 4*profileLength/5);
+    spline.add(thick*3, profileLength/4);
+    spline.add(thick*4, 4*profileLength/5);
     spline.add(thick, profileLength/2);
     spline.add(0, 0); // close spline
 
@@ -229,7 +242,9 @@ println("DEBUG:: tanvec2");
   PShape retained = createShape();
   retained.beginShape(TRIANGLES);  
   retained.enableStyle();
-  retained.fill(255,255,0);
+  retained.strokeWeight(0.5);
+  retained.stroke(220);
+  retained.fill(255, 255, 0);
 
   int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
 
@@ -255,7 +270,17 @@ println("DEBUG:: tanvec2");
     LineStrip3D2 profileOnCurveN = new LineStrip3D2(numProfilePoints); // next profile
     profilesOnCurve.add(profileOnCurveN);
 
+    ReadonlyVec3D v0 = spiral.get(i);
+    ReadonlyVec3D v1 = outwardVecs.get(i);
+
+    ReadonlyVec3D v0n = spiral.get(i+1);
+    ReadonlyVec3D v1n = outwardVecs.get(i+1);
+
+    Vec3D ppOnCurve1, ppOnCurve2;
+    Vec3D ppOnCurve3, ppOnCurve4;  // see diagram... goes 1-2 on curve 1 (clockwise) then 3-4 on curve 2 (clockwise)
+
     // now loop through and calculate current & next profile points
+    // first profile point is same as last, so we don't have to worry about stitching them together
     for (int j=0; j < numProfilePoints-1; j++)
     {
       Vec2D ppC = profilePointsC.get(j);
@@ -264,22 +289,12 @@ println("DEBUG:: tanvec2");
       Vec2D ppN = profilePointsN.get(j);
       Vec2D ppnN = profilePointsN.get(j+1);
 
-      ReadonlyVec3D v0 = spiral.get(i);
-      ReadonlyVec3D v1 = outwardVecs.get(i);
-
-      ReadonlyVec3D v0n = spiral.get(i+1);
-      ReadonlyVec3D v1n = outwardVecs.get(i+1);
-
-      Vec3D ppOnCurve1, ppOnCurve2;
-      Vec3D ppOnCurve3, ppOnCurve4;  // see diagram... goes 1-2 on curve 1 (clockwise) then 3-4 on curve 2 (clockwise)
-
       if (j > 0)
       {
         //we've already calcuated this
         ppOnCurve1 = profileOnCurveC.get(j);
         ppOnCurve3 = profileOnCurveN.get(j);
-      } 
-      else
+      } else
       {
         // current curve point and current in current profile (1)
         float x0 = v0.x() + ppC.y()*v1.x();  
@@ -397,7 +412,7 @@ println("DEBUG:: tanvec2");
     retained.vertex( centerPoint.x(), centerPoint.y(), centerPoint.z());
     ++j;
   }
-  
+
   retained.endShape();
   // update current 3D PShape
   spiralShape = retained;
@@ -417,13 +432,16 @@ void draw()
   //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
   // turn on backfce culling to make sure it looks as it will come out...
 
+  // draw dektop 3D printer shape for reference
+  shape(printerBoundingBox);
+
   lights();
   // DRAW PSHAPE STUFF
   PGL pgl = beginPGL();
   pgl.enable(PGL.CULL_FACE);
   // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
   pgl.frontFace(PGL.CCW);
- pgl.cullFace(PGL.BACK);
+  pgl.cullFace(PGL.BACK);
 
   //pgl.disable(PGL.CULL_FACE);
 
@@ -748,9 +766,9 @@ void computeRMS()
 
       // debug
       /*if (rmsArrayIndex == rmsAmplitudes.length-1)
-      {
-        // println("data[" + currentIndex + "]=" + data);
-      }*/
+       {
+       // println("data[" + currentIndex + "]=" + data);
+       }*/
       RMSSum += data*data; // add square of data to sum
       currentIndex++; 
       RMSIndex++;

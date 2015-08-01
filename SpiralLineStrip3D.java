@@ -137,7 +137,11 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     return this;
   }  
 
-
+  public List<Vec3D> getVertices() 
+  {
+    return super.getVertices();
+  }
+  
   // TODO - handle rotation based on this.dir??
   // TODO - fix this, it's not following convention but quicker right now...
 
