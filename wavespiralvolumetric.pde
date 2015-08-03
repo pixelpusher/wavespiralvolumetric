@@ -49,12 +49,12 @@ int diameterQuality = 4;
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 float turns = 6;
-float distanceBetweenSpirals = 30; // in mm
-float spiralThickness = 150/(turns*6); // in mm
-float spiralRadius = 80; // in mm
+float spiralThickness = 80.0/turns; // in mm
+float distanceBetweenSpirals = 20.0/turns; // in mm
+float spiralRadius = 40; // in mm
 //float spikiness = 160*3;
-float spikiness = 80;
-float minThickness = 0.1; // percentage, 0 - 1
+float spikiness = 40;
+float minThickness = 0.05; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -109,7 +109,7 @@ void setup()
   //b.transform(new Matrix4x4().translateSelf(pos.x,pos.y,pos.z));  // if we need to move it
   printerBoundingBox = meshToRetained(b, false);
   printerBoundingBox.setFill(false);
-  int c = color(255,180);
+  int c = color(255, 180);
   printerBoundingBox.setStroke(c);
   printerBoundingBox.setStrokeWeight(1);
 
@@ -204,26 +204,33 @@ void createSpiral(boolean forPrint)
   profilesOnCurve.clear();
   profilesOnCurve.ensureCapacity(numPoints);
 
-  println("DEBUG:: calculating profiles");
 
   for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-
-    float profileLength =  rmsAmplitudes[i]*spikiness + minThickness*spikiness;
+    float minRMS = (rmsAmplitudes[i] + minThickness);
+    float profileLength =  minRMS*spikiness;
     float spiralRadius = spiral.getRadius();
     float thick = spiral.getEdgeThickness();
 
     spline.add(0, 0);
-    spline.add(thick*3, profileLength/4);
-    spline.add(thick*4, 4*profileLength/5);
-    spline.add(thick, profileLength/2);
+    //spline.add(thick, profileLength*0.125);
+    spline.add(thick*0.6*minRMS, profileLength*0.35);
+    spline.add(thick*minRMS, profileLength);
+    spline.add(thick*0.8*minRMS, profileLength*0.55);
     spline.add(0, 0); // close spline
 
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
 
+    // DEBUG - removed this
     // add profile to internal tube list of profiles 
-    profiles.add(strip.add(strip.get(0)));
+    //profiles.add(strip.add(strip.get(0)));
+    
+    // test 1st and last points are the same
+    //float profDist = strip.get(0).distanceTo(strip.get(strip.getVertices().size()-1));
+    //println("p0-p8 dist=" + profDist);
+    
+    profiles.add(strip);
   }
 
   println("DEBUG:: added " + profiles.size() + " profiles");
@@ -240,11 +247,13 @@ void createSpiral(boolean forPrint)
 
   // start recording shape
   PShape retained = createShape();
-  retained.beginShape(TRIANGLES);  
+  retained.beginShape(TRIANGLES);
+  //retained.beginShape();  
   retained.enableStyle();
   retained.strokeWeight(0.5);
   retained.stroke(220);
-  retained.fill(255, 255, 0);
+  //retained.noFill();
+  
 
   int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
 
@@ -258,7 +267,7 @@ void createSpiral(boolean forPrint)
     {
       // calculate these profiles and add
       profileOnCurveC = new LineStrip3D2(numProfilePoints); // current profile
-      profilesOnCurve.add(profileOnCurveC);
+      profilesOnCurve.add(profileOnCurveC);      
     } 
     else
     {
@@ -269,6 +278,9 @@ void createSpiral(boolean forPrint)
     // always calculate next profiles
     LineStrip3D2 profileOnCurveN = new LineStrip3D2(numProfilePoints); // next profile
     profilesOnCurve.add(profileOnCurveN);
+
+    // DEBUG
+    //println("profilesOnCurve size=" + profilesOnCurve.size());
 
     ReadonlyVec3D v0 = spiral.get(i);
     ReadonlyVec3D v1 = outwardVecs.get(i);
@@ -283,11 +295,12 @@ void createSpiral(boolean forPrint)
     // first profile point is same as last, so we don't have to worry about stitching them together
     for (int j=0; j < numProfilePoints-1; j++)
     {
+      int nextPointIndex = (j+1);
       Vec2D ppC = profilePointsC.get(j);
-      Vec2D ppnC = profilePointsC.get(j+1);
+      Vec2D ppnC = profilePointsC.get(nextPointIndex);
 
       Vec2D ppN = profilePointsN.get(j);
-      Vec2D ppnN = profilePointsN.get(j+1);
+      Vec2D ppnN = profilePointsN.get(nextPointIndex);
 
       if (j > 0)
       {
@@ -333,18 +346,51 @@ void createSpiral(boolean forPrint)
       retained.fill(random(100, 255), random(50, 255), random(0, 80));
 
       // 1-3-2
+    
       retained.vertex( ppOnCurve1.x(), ppOnCurve1.y(), ppOnCurve1.z());
       retained.vertex( ppOnCurve3.x(), ppOnCurve3.y(), ppOnCurve3.z());
       retained.vertex( ppOnCurve2.x(), ppOnCurve2.y(), ppOnCurve2.z());
 
       mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
+      retained.fill(random(100, 255), random(50, 255), random(0, 80));
       // 2-3-4
+      
       retained.vertex( ppOnCurve2.x(), ppOnCurve2.y(), ppOnCurve2.z());
       retained.vertex( ppOnCurve3.x(), ppOnCurve3.y(), ppOnCurve3.z());
       retained.vertex( ppOnCurve4.x(), ppOnCurve4.y(), ppOnCurve4.z());
 
       mesh.addFace( ppOnCurve2, ppOnCurve3, ppOnCurve4 );
+      
+      
+      // DEBUG -- check for triangle sides that are too long
+      float d12 = ppOnCurve1.distanceTo(ppOnCurve2);
+      float d13 = ppOnCurve1.distanceTo(ppOnCurve3);
+      float d23 = ppOnCurve2.distanceTo(ppOnCurve3);
+      float d24 = ppOnCurve2.distanceTo(ppOnCurve4);
+      float d34 = ppOnCurve3.distanceTo(ppOnCurve4);
+      
+      if (d12  > 14)
+      {
+        println("spiral point["+i+"]["+j+"] 1-2 dist=" + d12);
+      }
+      if (d13  > 14)
+      {
+        println("spiral point["+i+"]["+j+"] 1-3 dist=" + d13);
+      }
+      if (d23 > 14)
+      {
+        println("spiral point["+i+"]["+j+"] 2-3 dist=" + d23);
+      }
+      if (d24 > 14)
+      {
+        println("spiral point["+i+"]["+j+"] 2-4 dist=" + d24);
+      }
+      if (d34 > 14)
+      {
+        println("spiral point["+i+"]["+(j+1)+"] 3-4 dist=" + d34);
+      }
+
     }
   }
 
@@ -469,7 +515,7 @@ void draw()
 
     if (drawProfiles)
       if (profileShape != null)
-        shape(profileShape);
+      shape(profileShape);
 
 
 
@@ -695,7 +741,7 @@ void fileSelected(File selection)
         soundAmplitudes = new float[amps.length];
 
         // initialize to 20 points per turn, to start
-        RMSSize = int(amps.length / (100.0 * turns)); 
+        RMSSize = max(1, int(amps.length / (100.0 * turns))); 
 
         for (int i=0; i<amps.length; i++)
           soundAmplitudes[i] = (float) amps[i];
@@ -735,7 +781,7 @@ void fileSelected(File selection)
 
 void computeRMS()
 {
-  // println("RMS Size: " + RMSSize);
+  println("RMS Size: " + RMSSize);
 
   ampMin = MAX_FLOAT;
   ampMax = MIN_FLOAT;

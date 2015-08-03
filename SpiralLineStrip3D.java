@@ -219,8 +219,8 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     // have to choose one or the other.
     for (int currentPoint=0; currentPoint < this.numPoints; currentPoint++)
     {
-      float turnsProgress = (float)(currentPoint)/totalPoints;
-      float turnsInnerProgress = (float)(currentPoint % pointsPerTurn)/pointsPerTurn;
+      float turnsProgress = ((float)(currentPoint))/totalPoints;
+      float turnsInnerProgress = ((float)(currentPoint % pointsPerTurn))/pointsPerTurn;
       float turnsInnerAngle = turnsInnerProgress * MathUtils.TWO_PI;
       float x = MathUtils.cos( turnsInnerAngle ) * this.radius;
       float y = MathUtils.sin( turnsInnerAngle ) * this.radius;
