@@ -54,7 +54,7 @@ float distanceBetweenSpirals = 20.0/turns; // in mm
 float spiralRadius = 40; // in mm
 //float spikiness = 160*3;
 float spikiness = 40;
-float minThickness = 0.05; // percentage, 0 - 1
+float minThickness = 0.15; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -209,15 +209,18 @@ void createSpiral(boolean forPrint)
   {
     Spline2D spline = new Spline2D();
     float minRMS = (rmsAmplitudes[i] + minThickness);
-    float profileLength =  minRMS*spikiness;
-    float spiralRadius = spiral.getRadius();
     float thick = spiral.getEdgeThickness();
+    float spiralRadius = spiral.getRadius();
+    float profileLength =  minThickness*thick + rmsAmplitudes[i]*spikiness;
+    
+    
 
     spline.add(0, 0);
-    //spline.add(thick, profileLength*0.125);
-    spline.add(thick*0.6*minRMS, profileLength*0.35);
+    //spline.add(thick*0.1*minRMS, profileLength*0.15);    
+    spline.add(thick*0.3*minRMS, profileLength*0.1);
     spline.add(thick*minRMS, profileLength);
-    spline.add(thick*0.8*minRMS, profileLength*0.55);
+    spline.add(thick*0.4*minRMS, profileLength*0.9);
+    //spline.add(thick*0.15*minRMS, profileLength*0.75);
     spline.add(0, 0); // close spline
 
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);

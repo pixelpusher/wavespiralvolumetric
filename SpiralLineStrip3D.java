@@ -224,7 +224,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
       float turnsInnerAngle = turnsInnerProgress * MathUtils.TWO_PI;
       float x = MathUtils.cos( turnsInnerAngle ) * this.radius;
       float y = MathUtils.sin( turnsInnerAngle ) * this.radius;
-      float z = turnsProgress * this.turns * (this.edgeThickness+this.distanceBetweenTurns);
+      float z = turnsProgress * this.turns * this.distanceBetweenTurns;
       this.vertices.add(new Vec3D(x, y, z));
     }
 
