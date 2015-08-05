@@ -256,8 +256,9 @@ void createSpiral(boolean forPrint)
   retained.beginShape(TRIANGLES);
   //retained.beginShape();  
   retained.enableStyle();
-  retained.strokeWeight(0.5);
-  retained.stroke(220);
+  //retained.strokeWeight(0.5);
+  //retained.stroke(220);
+  retained.noStroke();
   //retained.noFill();
 
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
@@ -353,9 +354,10 @@ void createSpiral(boolean forPrint)
 
       ppOnCurve4 = new Vec3D(x1n, y1n, z1n);
       profileOnCurveN.add( ppOnCurve4 );
-
+      
+      colorMode(HSB);
       // 1-3-2
-      retained.fill(random(100, 255), random(50, 255), random(0, 80));
+      retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
       pvertex(retained, ppOnCurve1);
       pvertex(retained, ppOnCurve3);
       pvertex(retained, ppOnCurve2);
@@ -363,7 +365,7 @@ void createSpiral(boolean forPrint)
       mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
       //2-3-4
-      retained.fill(random(100, 255), random(50, 255), random(0, 80));
+      retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
       pvertex(retained, ppOnCurve2);
       pvertex(retained, ppOnCurve3);
       pvertex(retained, ppOnCurve4);
@@ -840,8 +842,8 @@ void computeRMS()
   }
 
 
-  float[] rmsAmplitudesExtended = new float[rmsAmplitudes.length*TWEEN_POINTS];
-  
+  float[] rmsAmplitudesExtended = new float[rmsAmplitudes.length*TWEEN_POINTS];  //leave room for end->start
+
   for (int i=0; i<rmsAmplitudes.length-1; i++)
   {
     for (int ii=0; ii < TWEEN_POINTS; ii++)
@@ -852,7 +854,17 @@ void computeRMS()
       rmsAmplitudesExtended[i*TWEEN_POINTS+ii] = tweenVal;
     }
   }
-  rmsAmplitudesExtended[rmsAmplitudesExtended.length-1] = rmsAmplitudes[rmsAmplitudes.length-1];
+  // now start to finish
+  float first = rmsAmplitudes[0];
+  float last = rmsAmplitudes[rmsAmplitudes.length-1];
+
+  for (int ii=0; ii < TWEEN_POINTS; ii++)
+  {
+    // calculate linear mix of two vectors 
+    float progress = (float)ii/(TWEEN_POINTS-1); // make sure it goes to 100%
+    float tweenVal = tween.interpolate(last, first, progress); // get values btw 0 and 1
+    rmsAmplitudesExtended[(rmsAmplitudes.length-1)*TWEEN_POINTS+ii] = tweenVal;
+  }
 
   rmsAmplitudes = rmsAmplitudesExtended;
   createSpiral(true);

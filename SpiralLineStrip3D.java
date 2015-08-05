@@ -192,38 +192,35 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
       turns = 1; // avoid divide by 0
     }
 
-    int pointsPerTurn = (int)(this.numPoints/this.turns);
-    int totalPoints   = (int)(pointsPerTurn*this.turns); // might have been rounding differences
+    float totalRadians = MathUtils.TWO_PI * this.turns;
+    float radiansPerPoint = totalRadians / this.numPoints;
 
-    this.vertices = new ArrayList<Vec3D>( totalPoints);
+    this.vertices = new ArrayList<Vec3D>( this.numPoints);
 
     // nothing to do here - too few points
-    if (totalPoints < 2)
+    if (this.numPoints < 2)
     {
-      for (int i=0; i< totalPoints; i++)
+      this.numPoints = 2;
+      for (int i=0; i< this.numPoints; i++)
         this.vertices.add(new Vec3D(this.radius, 0, 0));
 
       return this;
     }
     
-    System.out.println("total points: " + totalPoints +  " / " +  this.numPoints);
-    if (totalPoints != this.numPoints) System.out.println("SpiralLineStrip3D WARNING:: total points and numPoints not the same due to turns. Updating them.");
-    System.out.println("points per turn: " +  pointsPerTurn);
+    System.out.println("total points: " + this.numPoints);
     System.out.println("turns: " + this.turns);
-
-    this.numPoints = totalPoints;
 
     // NOTE: Direction and axis are handled only when getting a point or list of points
 
     // note - here we're calculating all points requested, even though the number of turns might not match exactly.. 
     // have to choose one or the other.
+    
+    
     for (int currentPoint=0; currentPoint < this.numPoints; currentPoint++)
     {
-      float turnsProgress = ((float)(currentPoint))/totalPoints;
-      float turnsInnerProgress = ((float)(currentPoint % pointsPerTurn))/pointsPerTurn;
-      float turnsInnerAngle = turnsInnerProgress * MathUtils.TWO_PI;
-      float x = MathUtils.cos( turnsInnerAngle ) * this.radius;
-      float y = MathUtils.sin( turnsInnerAngle ) * this.radius;
+      float turnsProgress = ((float)currentPoint)/this.numPoints;
+      float x = MathUtils.cos( radiansPerPoint*currentPoint ) * this.radius;
+      float y = MathUtils.sin( radiansPerPoint*currentPoint ) * this.radius;
       float z = turnsProgress * this.turns * this.distanceBetweenTurns;
       this.vertices.add(new Vec3D(x, y, z));
     }
