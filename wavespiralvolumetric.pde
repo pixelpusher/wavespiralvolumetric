@@ -49,6 +49,10 @@ int diameterQuality = 4;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
+BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
+final int TWEEN_POINTS = 5; // resolution of tween
+
+
 float turns = 3;
 float spiralThickness = 80.0/turns; // in mm
 float distanceBetweenSpirals = 20.0/turns; // in mm
@@ -256,8 +260,6 @@ void createSpiral(boolean forPrint)
   retained.stroke(220);
   //retained.noFill();
 
-  BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
-  final int TWEEN_POINTS = 8; // resolution of tween
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
 
     // store the previously calculated points for the bezier surface in between profile rings
@@ -352,117 +354,22 @@ void createSpiral(boolean forPrint)
       ppOnCurve4 = new Vec3D(x1n, y1n, z1n);
       profileOnCurveN.add( ppOnCurve4 );
 
-      //TODO
-      // interpolate smooth chain of points from 1-3 and 2-4 and connect
+      // 1-3-2
+      retained.fill(random(100, 255), random(50, 255), random(0, 80));
+      pvertex(retained, ppOnCurve1);
+      pvertex(retained, ppOnCurve3);
+      pvertex(retained, ppOnCurve2);
 
-      // find vectors perpendicular to the surface created by the 4 path points
-      Vec3D cDir = ppOnCurve3.sub(ppOnCurve1);
-      Vec3D nDir = ppOnCurve4.sub(ppOnCurve2);
+      mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
-      Vec3D vCurrent = ppOnCurve2.sub(ppOnCurve1).cross( cDir ).normalize();
-      Vec3D vNext = ppOnCurve1.sub(ppOnCurve2).cross( nDir ).normalize();
+      //2-3-4
+      retained.fill(random(100, 255), random(50, 255), random(0, 80));
+      pvertex(retained, ppOnCurve2);
+      pvertex(retained, ppOnCurve3);
+      pvertex(retained, ppOnCurve4);
 
-      //float cDist = cDir.magnitude();
-      //float nDist = nDir.magnitude();
+      mesh.addFace( ppOnCurve2, ppOnCurve3, ppOnCurve4 );
 
-      cDir.normalize();
-      nDir.normalize();
-
-      Vec3D[] nextInterpPoints = new Vec3D[TWEEN_POINTS];
-
-      if (j == 0)
-      {
-
-        //calculate prev interp points
-        // calculate interpolated points between next profile point in this path and next profile point in the next path
-        for (int vi=0; vi < TWEEN_POINTS; vi++)
-        {
-          // calculate linear mix of two vectors 
-          float progress = (float)vi/(TWEEN_POINTS-1); // make sure it goes to 100%
-          float tweenVal = tween.interpolate(0f, 1f, progress); // get values btw 0 and 1
-
-          Vec3D currentNormal = vCurrent.interpolateTo(vNext, progress);
-          float val = sin(progress*PI)*2f; //0-PI -> 0->1->0
-
-          Vec3D currentPoint =  ppOnCurve1.interpolateTo(ppOnCurve3, progress);
-          //Vec3D currentPoint =  ppOnCurve1.add( cDir.scale(cDist*progress)).add(currentNormal.scale(val));
-
-          //prevInterpPoints[vi] = currentPoint;
-
-          if (vi % 2 == 0)
-            prevInterpPoints[vi] = currentPoint.add( currentNormal.scale(val));
-          else
-            prevInterpPoints[vi] = currentPoint.sub( currentNormal.scale(val));
-          
-        }
-      }
-
-
-      // calculate interpolated points between next profile point in this path and next profile point in the next path
-      for (int vi=0; vi < TWEEN_POINTS; vi++)
-      {
-        // calculate linear mix of two vectors 
-        float progress = (float)vi/(TWEEN_POINTS-1); // make sure it goes to 100%
-        float tweenVal = tween.interpolate(0f, 1f, progress); // get values btw 0 and 1
-
-        Vec3D currentNormal = vCurrent.interpolateTo(vNext, progress);
-
-        float val = sin(progress*PI)*2f; //0-PI -> 0->1->0
-
-        //Vec3D currentPoint =  ppOnCurve2.add( nDir.scale(nDist*progress)).add(currentNormal.scale(val));
-
-        // linearly interpolate between two profile path points 
-        //nextInterpPoints[vi] = ppOnCurve2.scale(1-tweenVal).add(ppOnCurve4.scale(tweenVal));
-        //Vec3D diffPoint = ppOnCurve4.sub(ppOnCurve2);
-        //nextInterpPoints[vi] = ppOnCurve2.add(diffPoint.scale(tweenVal));
-
-        Vec3D currentPoint =  ppOnCurve2.interpolateTo(ppOnCurve4, progress);
-
-        //Vec3D ddd = ppOnCurve4.sub(ppOnCurve2).normalize().scale(0.3);        
-        //Vec3D currentPoint = BezierCurve3D.computePointInSegment(ppOnCurve2, ddd.add(ppOnCurve2), ddd.scale(-1f).add(ppOnCurve2), ppOnCurve4, progress);
-        //nextInterpPoints[vi] = currentPoint.sub( currentNormal.scale(val));
-
-        if (vi % 2 == 0)
-          nextInterpPoints[vi] = currentPoint.add( currentNormal.scale(val));
-        else
-          nextInterpPoints[vi] = currentPoint.sub( currentNormal.scale(val));
-
-        //nextInterpPoints[vi] = currentPoint;
-      }
-
-      // draw geometry for all intermediate points
-
-      // updated precalculated interp points to save time next loop
-      for (int ppi=0; ppi < TWEEN_POINTS-1; ppi++)
-      {
-        Vec3D iv1, iv2, iv3, iv4;
-
-        iv1 = prevInterpPoints[ppi];
-        iv2 = nextInterpPoints[ppi];
-        iv3 = prevInterpPoints[ppi+1];
-        iv4 = nextInterpPoints[ppi+1];
-        // 1-3-2
-        retained.fill(random(100, 255), random(50, 255), random(0, 80));
-        pvertex(retained, iv1);
-        pvertex(retained, iv3);
-        pvertex(retained, iv2);
-
-        mesh.addFace( iv1, iv3, iv2 );
-
-        //2-3-4
-        retained.fill(random(100, 255), random(50, 255), random(0, 80));
-        pvertex(retained, iv2);
-        pvertex(retained, iv3);
-        pvertex(retained, iv4);
-
-        mesh.addFace( iv2, iv3, iv4 );
-      }
-
-      for (int ppi=0; ppi < TWEEN_POINTS; ppi++)
-      {
-        // updated precalulated interp points to save time next loop
-        prevInterpPoints[ppi].set( nextInterpPoints[ppi]);
-      }
 
       /*
       // DEBUG -- check for triangle sides that are too long
@@ -617,7 +524,7 @@ void draw()
 
     if (drawProfiles)
       if (profileShape != null)
-      shape(profileShape);
+        shape(profileShape);
 
 
 
@@ -931,6 +838,23 @@ void computeRMS()
 
     //println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
   }
+
+
+  float[] rmsAmplitudesExtended = new float[rmsAmplitudes.length*TWEEN_POINTS];
+  
+  for (int i=0; i<rmsAmplitudes.length-1; i++)
+  {
+    for (int ii=0; ii < TWEEN_POINTS; ii++)
+    {
+      // calculate linear mix of two vectors 
+      float progress = (float)ii/(TWEEN_POINTS-1); // make sure it goes to 100%
+      float tweenVal = tween.interpolate(rmsAmplitudes[i], rmsAmplitudes[i+1], progress); // get values btw 0 and 1
+      rmsAmplitudesExtended[i*TWEEN_POINTS+ii] = tweenVal;
+    }
+  }
+  rmsAmplitudesExtended[rmsAmplitudesExtended.length-1] = rmsAmplitudes[rmsAmplitudes.length-1];
+
+  rmsAmplitudes = rmsAmplitudesExtended;
   createSpiral(true);
 }
 
