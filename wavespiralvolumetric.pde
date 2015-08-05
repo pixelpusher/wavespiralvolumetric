@@ -41,11 +41,11 @@ PShape profileShape = null;
 PShape printerBoundingBox = null;
 TriangleMesh mesh = null;
 
-boolean drawProfiles = false;
+boolean drawProfiles = false, drawVecs=false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 4;
+int diameterQuality = 6;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
@@ -109,8 +109,8 @@ void setup()
 
   //
   // create printer bounding box shape for reference
-  Vec3D printerSizeInMM = new Vec3D(285, 153, 155); // Makerbot replicator 2
-  TriangleMesh b = (TriangleMesh)new AABB(new Vec3D(), printerSizeInMM).toMesh(); 
+  Vec3D printerSizeInMM = new Vec3D(285,155, 153); // Makerbot replicator 2
+  TriangleMesh b = (TriangleMesh)new AABB(new Vec3D(0,0,printerSizeInMM.z()), printerSizeInMM).toMesh(); 
   //b.transform(new Matrix4x4().translateSelf(pos.x,pos.y,pos.z));  // if we need to move it
   printerBoundingBox = meshToRetained(b, false);
   printerBoundingBox.setFill(false);
@@ -187,12 +187,20 @@ void createSpiral(boolean forPrint)
     // outward facing vector at each point
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
     Vec3D v1 = spiralVec.sub( nextSpiralVec );
-
+    
+    // TODO - FIXME
+    // there's an issue... the vectors are slightly off every 90 degrees.  Hmm.
+    // This causes errors in geometry.
+    
+    Vec3D po = outwardVecs.get(i-1);
+    //outVec.set(v0.add(v1).interpolateTo(po,0.1)); // try to smooth it a bit...
     outVec.set(v0.add(v1));
     outVec.normalize();
   }
-  println("DEBUG:: tanvec3");
-
+  
+  ArrayList<Vec3D> smoothOutVecs = new ArrayList<Vec3D>();
+  
+  
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
   tanVecs.get(numPoints-1).set(tanVecs.get(numPoints-2));
@@ -316,7 +324,7 @@ void createSpiral(boolean forPrint)
 
       if (j > 0)
       {
-        //we've already calcuated this
+        //we've already calculated this
         ppOnCurve1 = profileOnCurveC.get(j);
         ppOnCurve3 = profileOnCurveN.get(j);
       } else
@@ -354,7 +362,7 @@ void createSpiral(boolean forPrint)
 
       ppOnCurve4 = new Vec3D(x1n, y1n, z1n);
       profileOnCurveN.add( ppOnCurve4 );
-      
+
       colorMode(HSB);
       // 1-3-2
       retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
@@ -479,12 +487,31 @@ void createSpiral(boolean forPrint)
 
 
 
+void drawOutVecs()
+{
+  beginShape(LINES);
+  noFill();
+  strokeWeight(2);
+  stroke(180, 255, 220);
+
+  int i=0;
+
+  for (Vec3D v : outwardVecs)
+  {
+    vertex(spiral.get(i));
+    vertex(v.scale(10).add(spiral.get(i)));
+    i++;
+  }
+  endShape();
+}
+
 void draw()
 {  
   background(0);
   fill(200, 0, 200, 100);
   stroke(255);
 
+  PGL pgl = beginPGL();
   //lights();
   //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
   // turn on backfce culling to make sure it looks as it will come out...
@@ -492,9 +519,9 @@ void draw()
   // draw dektop 3D printer shape for reference
   shape(printerBoundingBox);
 
-  lights();
+  //lights();
   // DRAW PSHAPE STUFF
-  PGL pgl = beginPGL();
+  
   pgl.enable(PGL.CULL_FACE);
   // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
   pgl.frontFace(PGL.CCW);
@@ -510,7 +537,7 @@ void draw()
 
   endPGL(); // restores the GL defaults for Processing
 
-  noLights();
+  //noLights();
 
 
   if (true)
@@ -528,7 +555,8 @@ void draw()
       if (profileShape != null)
         shape(profileShape);
 
-
+    if (drawVecs)
+      drawOutVecs();
 
     cam.beginHUD();
 
@@ -666,6 +694,9 @@ void keyReleased()
   } else if (key == 'z')
   {
     drawProfiles = !drawProfiles;
+  } else if (key =='v')
+  {
+    drawVecs = !drawVecs;
   } else if (key == 'F')
   {
     // get first part of filename, ignore extension
@@ -875,4 +906,15 @@ void pvertex(PShape p, Vec3D v)
 {
   p.vertex(v.x(), v.y(), v.z());
 }
+
+void vertex(Vec3D v)
+{
+  vertex(v.x(), v.y(), v.z());
+}
+
+void vertex(float[] v)
+{
+  vertex(v[0], v[1], v[2]);
+}
+
 

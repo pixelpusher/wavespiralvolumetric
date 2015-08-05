@@ -192,8 +192,8 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
       turns = 1; // avoid divide by 0
     }
 
-    float totalRadians = MathUtils.TWO_PI * this.turns;
-    float radiansPerPoint = totalRadians / this.numPoints;
+    double totalRadians = Math.PI * 2d * this.turns;
+    double radiansPerPoint = totalRadians / this.numPoints;
 
     this.vertices = new ArrayList<Vec3D>( this.numPoints);
 
@@ -215,14 +215,21 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     // note - here we're calculating all points requested, even though the number of turns might not match exactly.. 
     // have to choose one or the other.
     
+    Vec3D prev = new Vec3D(0f,0f,0f);
     
     for (int currentPoint=0; currentPoint < this.numPoints; currentPoint++)
     {
-      float turnsProgress = ((float)currentPoint)/this.numPoints;
-      float x = MathUtils.cos( radiansPerPoint*currentPoint ) * this.radius;
-      float y = MathUtils.sin( radiansPerPoint*currentPoint ) * this.radius;
-      float z = turnsProgress * this.turns * this.distanceBetweenTurns;
-      this.vertices.add(new Vec3D(x, y, z));
+      double turnsProgress = ((double)currentPoint)/this.numPoints;
+      double x = Math.cos( radiansPerPoint*currentPoint ) * this.radius;
+      double y = Math.sin( radiansPerPoint*currentPoint ) * this.radius;
+      double z = turnsProgress * this.turns * this.distanceBetweenTurns;
+      Vec3D vert = new Vec3D((float)x, (float)y, (float)z);
+      this.vertices.add(vert);
+      //DEBUG
+      //System.out.println("pdiff["+currentPoint+"]=" + prev.distanceTo(vert));
+      
+      prev.set(vert);
+      
     }
 
     Vec3D topBottomDiff = this.vertices.get( this.vertices.size() - 1).sub(this.vertices.get(0));

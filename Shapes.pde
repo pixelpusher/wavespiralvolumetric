@@ -2,8 +2,8 @@
 PShape meshToRetained(Mesh3D mesh, boolean smth) {        
   PShape retained = createShape();
   
-  retained.enableStyle();
   retained.beginShape(TRIANGLES);
+  retained.enableStyle();
   mesh.computeFaceNormals();
   
   if (smth) 
