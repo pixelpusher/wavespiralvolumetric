@@ -1,4 +1,78 @@
 
+void createRMSVizShapes()
+{
+  colorMode(RGB);
+  
+  soundAmpsShape = createShape(); 
+  soundAmpsShape.enableStyle();
+  soundAmpsShape.beginShape();
+  
+  soundAmpsShape.strokeWeight(1);
+  soundAmpsShape.noFill();
+  //soundAmpsShape.stroke(waveDataColor.toARGB());
+  soundAmpsShape.stroke(255,10,20,165);
+
+  float yPos = -height/2f;
+  //float yPos = 0f;
+  Vec3D v = new Vec3D((float)-width, yPos, 0f);
+
+  float widthInc = (width*2f)/soundAmplitudes.length;
+
+  for (int i=0; i < soundAmplitudes.length; i++)
+  { 
+    v.setY( height-(soundAmplitudes[i]+1f)*height);
+    pvertex(soundAmpsShape, v);
+    v.addSelf(widthInc, 0, 0);
+  }
+  soundAmpsShape.endShape();
+
+  soundRMSShape = createShape();
+  soundRMSShape.beginShape();
+  soundRMSShape.enableStyle();
+  soundRMSShape.strokeWeight(3.5);
+  soundRMSShape.noFill();
+  //soundRMSShape.stroke(RMSColor.toARGB());
+  soundRMSShape.stroke(105,64,255);
+  
+
+  //yPos = -yPos;
+  v.set(-width, yPos, 0);
+
+  widthInc = (width*2f)/rmsAmplitudes.length;
+
+  for (int i=0; i < rmsAmplitudes.length; i++)
+  { 
+    v.setY( -rmsAmplitudes[i]*height*2f);
+    pvertex(soundRMSShape, v);
+    v.addSelf(widthInc, 0, 0);
+  }
+  soundRMSShape.endShape();
+
+
+  soundRMSShape2 = createShape();
+  soundRMSShape2.beginShape();
+  soundRMSShape2.enableStyle();
+  soundRMSShape2.strokeWeight(3.5);
+  //soundRMSShape2.stroke(RMSVelColor.toARGB());
+  soundRMSShape2.stroke(20,30,204);
+  
+  soundRMSShape2.noFill();
+
+  //yPos = -yPos;
+  v.set(-width, yPos, 0);
+
+  widthInc = (width*2f)/rmsAmplitudes2.length;
+
+  for (int i=0; i < rmsAmplitudes2.length; i++)
+  { 
+    v.setY( -rmsAmplitudes2[i]*height*4f);
+    pvertex(soundRMSShape2, v);
+    v.addSelf(widthInc, 0, 0);
+  }
+  soundRMSShape2.endShape();
+}
+
+
 PShape meshToRetained(Mesh3D mesh, boolean smth) {        
   PShape retained = createShape();
   

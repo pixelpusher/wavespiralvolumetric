@@ -5,9 +5,9 @@
 // Draw a base spiral and offset it by the sound volume (RMS)
 //
 // TODO
-// - fix bounding box pshape display - not showing due to some PShape thing?
-// - bounding box check - model size display too!! How bug are these??
-// - see BezierTween for example of generating smooth geometry between profile shapes
+
+// - better lighting
+// - fix overlay colors (TColor bug? Or PShape stroke bug?)
 // - how about a REPL for commands instead of stupid key presses
 // - need flat base for stand and for printing properly...
 // - how about filling it to the max spikiness in between shapes, so it is recessed rather 
@@ -27,11 +27,10 @@ import processing.opengl.*;
 import peasy.*;
 
 
-
 boolean fileChosen = false;
 PrintWriter output, outputRMS;
 float[] soundAmplitudes;
-float[] rmsAmplitudes;
+float[] rmsAmplitudes, rmsAmplitudes2;
 ArrayList<Vec3D> outwardVecs, tanVecs;
 ArrayList<LineStrip2D> profiles; // 2D polygon shapes for the tube geometry based on rms volume
 ArrayList<LineStrip3D2> profilesOnCurve; // the 3D profiles fitted to the underlying curve
@@ -39,18 +38,21 @@ ArrayList<LineStrip3D2> profilesOnCurve; // the 3D profiles fitted to the underl
 PShape spiralShape = null;
 PShape profileShape = null;
 PShape printerBoundingBox = null;
+PShape soundAmpsShape = null, soundRMSShape = null, soundRMSShape2 = null;
+PShader toon;
+
 TriangleMesh mesh = null;
 
-boolean drawProfiles = false, drawVecs=false;
+boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 6;
+int diameterQuality = 5;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
-final int TWEEN_POINTS = 5; // resolution of tween
+final int TWEEN_POINTS = 4; // resolution of tween
 
 
 float turns = 3;
@@ -104,13 +106,17 @@ void setup()
   cam.setMaximumDistance(width*200);
   cam.setResetOnDoubleClick(true);
 
+  toon = loadShader("ToonFrag.glsl", "ToonVert.glsl");
+
   background(0);
   fill(200);
 
+  setupColors();
+
   //
   // create printer bounding box shape for reference
-  Vec3D printerSizeInMM = new Vec3D(285,155, 153); // Makerbot replicator 2
-  TriangleMesh b = (TriangleMesh)new AABB(new Vec3D(0,0,printerSizeInMM.z()), printerSizeInMM).toMesh(); 
+  Vec3D printerSizeInMM = new Vec3D(285, 155, 153); // Makerbot replicator 2
+  TriangleMesh b = (TriangleMesh)new AABB(new Vec3D(0, 0, printerSizeInMM.z()), printerSizeInMM).toMesh(); 
   //b.transform(new Matrix4x4().translateSelf(pos.x,pos.y,pos.z));  // if we need to move it
   printerBoundingBox = meshToRetained(b, false);
   printerBoundingBox.setFill(false);
@@ -145,7 +151,7 @@ void setup()
 
 
 
-void createSpiral(boolean forPrint)
+void createSpiral()
 {
   // set number of points
   spiral.setTurns(turns, false)
@@ -160,6 +166,13 @@ void createSpiral(boolean forPrint)
   // take the next point and subtract from previous point to get inwards pointing vector
 
   int numPoints = spiral.getNumPoints(); 
+
+  // set color scheme
+  //helixColors = helixColorTheme.getColors(numPoints);
+
+  helixColorGrad.addColorAt(0, helixStartColor);
+  helixColorGrad.addColorAt(numPoints, helixEndColor);
+  helixColors = helixColorGrad.calcGradient(0, numPoints);
 
   println("DEBUG:: setting up tangent and outwards vectors");
 
@@ -187,20 +200,20 @@ void createSpiral(boolean forPrint)
     // outward facing vector at each point
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
     Vec3D v1 = spiralVec.sub( nextSpiralVec );
-    
+
     // TODO - FIXME
     // there's an issue... the vectors are slightly off every 90 degrees.  Hmm.
     // This causes errors in geometry.
-    
+
     Vec3D po = outwardVecs.get(i-1);
     //outVec.set(v0.add(v1).interpolateTo(po,0.1)); // try to smooth it a bit...
     outVec.set(v0.add(v1));
     outVec.normalize();
   }
-  
+
   ArrayList<Vec3D> smoothOutVecs = new ArrayList<Vec3D>();
-  
-  
+
+
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
   tanVecs.get(numPoints-1).set(tanVecs.get(numPoints-2));
@@ -249,6 +262,7 @@ void createSpiral(boolean forPrint)
 
   println("DEBUG:: added " + profiles.size() + " profiles");
 
+
   //
   // BUILDING MESH AND PSHAPE ----------------------=------------
   //
@@ -264,9 +278,15 @@ void createSpiral(boolean forPrint)
   retained.beginShape(TRIANGLES);
   //retained.beginShape();  
   retained.enableStyle();
+
+  colorMode(RGB);
+  
   //retained.strokeWeight(0.5);
   //retained.stroke(220);
   retained.noStroke();
+  //retained.ambient(200);
+  //retained.emissive(200);
+  //retained.specular(255);
   //retained.noFill();
 
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
@@ -363,9 +383,10 @@ void createSpiral(boolean forPrint)
       ppOnCurve4 = new Vec3D(x1n, y1n, z1n);
       profileOnCurveN.add( ppOnCurve4 );
 
-      colorMode(HSB);
       // 1-3-2
-      retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
+      //retained.stroke(helixColors.get(numPoints-i-1).toARGB());
+
+      retained.fill(helixColors.get(i).toARGB());
       pvertex(retained, ppOnCurve1);
       pvertex(retained, ppOnCurve3);
       pvertex(retained, ppOnCurve2);
@@ -373,7 +394,7 @@ void createSpiral(boolean forPrint)
       mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
       //2-3-4
-      retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
+      //retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
       pvertex(retained, ppOnCurve2);
       pvertex(retained, ppOnCurve3);
       pvertex(retained, ppOnCurve4);
@@ -433,6 +454,8 @@ void createSpiral(boolean forPrint)
     centerPoint.addSelf(p);
   centerPoint.scaleSelf(1.0/numProfilePoints);
 
+  retained.fill(helixColors.get(numPoints-1).toARGB());
+
   // profile points go clockwise, so we go backwards
   int j=numProfilePoints;
 
@@ -454,9 +477,11 @@ void createSpiral(boolean forPrint)
   //
   // add start cap
   //
-
+ 
   endProfilePoints = profilesOnCurve.get(0);
 
+  retained.fill(helixColors.get(0).toARGB());
+  
   // find average (center) point of cap
   centerPoint.set(0, 0, 0);
   for (Vec3D p : endProfilePoints)
@@ -509,36 +534,66 @@ void draw()
 {  
   background(0);
   fill(200, 0, 200, 100);
-  stroke(255);
+  //stroke(255);
 
+
+  if (drawRMSOverlay)
+  {
+    noLights();
+    hint(DISABLE_DEPTH_TEST);
+    colorMode(RGB);
+
+    if (soundAmpsShape != null)  
+      shape(soundAmpsShape);
+
+    if (soundRMSShape != null)
+      shape(soundRMSShape);
+
+    if (soundRMSShape2 != null)
+      shape(soundRMSShape2);
+      
+    hint(ENABLE_DEPTH_TEST);
+  } 
+  else
+  {
   PGL pgl = beginPGL();
   //lights();
   //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
   // turn on backfce culling to make sure it looks as it will come out...
 
   // draw dektop 3D printer shape for reference
-  shape(printerBoundingBox);
+  if (drawPrinterBox) shape(printerBoundingBox);
 
-  //lights();
-  // DRAW PSHAPE STUFF
-  
-  pgl.enable(PGL.CULL_FACE);
-  // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
-  pgl.frontFace(PGL.CCW);
-  pgl.cullFace(PGL.BACK);
+    //lights();
+    // DRAW PSHAPE STUFF
+    
+    pgl.enable(PGL.CULL_FACE);
+    // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
+    pgl.frontFace(PGL.CCW);
+    pgl.cullFace(PGL.BACK);
 
-  //pgl.disable(PGL.CULL_FACE);
+    //pgl.disable(PGL.CULL_FACE);
 
-  if (!drawProfiles)
-  {
-    if (spiralShape != null)
-      shape(spiralShape);
+    if (!drawProfiles)
+    {
+      if (spiralShape != null)
+      {
+        //shader(toon);
+        lights();
+        ambientLight(100, 100, 100);
+        directionalLight(240, 240, 240, -0.6, 0, -1);
+        
+        directionalLight(204, 204, 204, 0.6, 0, 1);
+      
+        shape(spiralShape);
+        //resetShader();
+        noLights();
+      }
+    }
+    
+    endPGL(); // restores the GL defaults for Processing
+    //noLights();
   }
-
-  endPGL(); // restores the GL defaults for Processing
-
-  //noLights();
-
 
   if (true)
   {  
@@ -607,6 +662,9 @@ void keyReleased()
     computeRMS();
     //println("RMSSize:" + RMSSize);
     loop();
+  } else if (key == 'o')
+  {
+    drawRMSOverlay = !drawRMSOverlay;
   } else if (key == 'D')
   {
     noLoop();
@@ -829,6 +887,7 @@ void computeRMS()
   ampMax = MIN_FLOAT;
 
   rmsAmplitudes = new float[soundAmplitudes.length/RMSSize];
+  rmsAmplitudes2 = new float[soundAmplitudes.length/RMSSize];
 
   // println("calculating " + rmsAmplitudes.length + " samples");
 
@@ -845,21 +904,24 @@ void computeRMS()
     }
 
     int RMSIndex = 0;
-    float RMSSum = 0;
+    float RMSSum = 0, RMSSum2=0;
+    float prevData = 0f;
 
     while (RMSIndex < RMSSize)
     {
       // convert data to float
       float data = (float)soundAmplitudes[currentIndex];
-
+      float diffData = data - prevData;
       // debug
       /*if (rmsArrayIndex == rmsAmplitudes.length-1)
        {
        // println("data[" + currentIndex + "]=" + data);
        }*/
-      RMSSum += data*data; // add square of data to sum
+      RMSSum2 += diffData*diffData; // add square of data to sum
+      RMSSum += data*data;
       currentIndex++; 
       RMSIndex++;
+      prevData = data;
     }
 
     // find average value - could also scale logarithmically
@@ -867,7 +929,8 @@ void computeRMS()
     ampMin = min(ampMin, RMSAve);
     ampMax = max(ampMax, RMSAve);
 
-    rmsAmplitudes[rmsArrayIndex++] = RMSAve;
+    rmsAmplitudes[rmsArrayIndex] = sqrt(RMSAve);
+    rmsAmplitudes2[rmsArrayIndex++] = sqrt(RMSSum2/float(RMSSize));
 
     //println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
   }
@@ -898,7 +961,8 @@ void computeRMS()
   }
 
   rmsAmplitudes = rmsAmplitudesExtended;
-  createSpiral(true);
+  createSpiral();
+  createRMSVizShapes();
 }
 
 
@@ -916,5 +980,3 @@ void vertex(float[] v)
 {
   vertex(v[0], v[1], v[2]);
 }
-
-
