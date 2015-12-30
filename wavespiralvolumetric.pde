@@ -110,6 +110,8 @@ void setup()
 
   setupColors();
 
+  mesh = new TriangleMesh("spiralmesh"); // mesh to hold final spiral for export
+
   //
   // create printer bounding box shape for reference
   Vec3D printerSizeInMM = new Vec3D(285, 155, 153); // Makerbot replicator 2
@@ -135,8 +137,8 @@ void setup()
 
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
-      .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-        .setEdgeThickness(spiralThickness, false);
+    .setDistanceBetweenTurns(distanceBetweenSpirals, false)
+    .setEdgeThickness(spiralThickness, false);
 
   profiles = new ArrayList<LineStrip2D>();
   outwardVecs = new ArrayList<Vec3D>();
@@ -147,33 +149,41 @@ void setup()
 }
 
 
+// 
+// Build spiral mesh (use already allocated spiral to save time/memory) with
+// optional start and end caps.  Input mesh can be null.
+//
 
-void createSpiral()
-{
+void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
+{  
+  // requires:
+  // - profiles (list of circular profiles for each tube segment).  Will be cleared and regenerated
+  // - profilesOnCurve (list of above profiles fit to the 3D spiral curve). Will be cleared and regenerated
+  // - 
+
+
+  if (mesh == null) throw new NullPointerException("Mesh cannot be null in createSpiral");
+  else
+    mesh.clear();
+
+
   // set number of points
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
-      .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-        .setEdgeThickness(spiralThickness, false)
-          .setNumPoints(rmsAmplitudes.length);
+    .setDistanceBetweenTurns(distanceBetweenSpirals, false)
+    .setEdgeThickness(spiralThickness, false)
+    .setNumPoints(rmsAmplitudes.length);
 
   println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
 
   // calculate tangents and outwards facing vectors
   // take the next point and subtract from previous point to get inwards pointing vector
 
-  int numPoints = spiral.getNumPoints(); 
-
-  // set color scheme
-  //helixColors = helixColorTheme.getColors(numPoints);
-
-  helixColorGrad.addColorAt(0, helixStartColor);
-  helixColorGrad.addColorAt(numPoints, helixEndColor);
-  helixColors = helixColorGrad.calcGradient(0, numPoints);
+  int numPoints = spiral.getNumPoints();
 
   println("DEBUG:: setting up tangent and outwards vectors");
 
-  outwardVecs.clear(); 
+  outwardVecs.clear();
   tanVecs.clear();
 
   for (int i=0; i < numPoints; i++)
@@ -209,7 +219,6 @@ void createSpiral()
   }
 
   ArrayList<Vec3D> smoothOutVecs = new ArrayList<Vec3D>();
-
 
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
@@ -259,38 +268,16 @@ void createSpiral()
 
   println("DEBUG:: added " + profiles.size() + " profiles");
 
-
   //
   // BUILDING MESH AND PSHAPE ----------------------=------------
   //
 
   // iterate through all profiles and build 3D mesh
-  if (mesh == null) mesh = new TriangleMesh();
-  else
-    mesh.clear();
-
-
-  // start recording shape
-  PShape retained = createShape();
-  retained.beginShape(TRIANGLES);
-  //retained.beginShape();  
-  retained.enableStyle();
-
-  colorMode(RGB);
-  
-  //retained.strokeWeight(0.5);
-  //retained.stroke(220);
-  retained.noStroke();
-  //retained.ambient(200);
-  //retained.emissive(200);
-  //retained.specular(255);
-  //retained.noFill();
 
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
 
-    // store the previously calculated points for the bezier surface in between profile rings
+  // store the previously calculated points for the bezier surface in between profile rings
   Vec3D[] prevInterpPoints = new Vec3D[TWEEN_POINTS]; 
-
 
   for (int i=0; i < numPoints-1; i++)
   {
@@ -382,22 +369,12 @@ void createSpiral()
 
       // 1-3-2
       //retained.stroke(helixColors.get(numPoints-i-1).toARGB());
-
-      retained.fill(helixColors.get(i).toARGB());
-      pvertex(retained, ppOnCurve1);
-      pvertex(retained, ppOnCurve3);
-      pvertex(retained, ppOnCurve2);
-
+      //retained.fill(helixColors.get(i).toARGB());
       mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
       //2-3-4
       //retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
-      pvertex(retained, ppOnCurve2);
-      pvertex(retained, ppOnCurve3);
-      pvertex(retained, ppOnCurve4);
-
       mesh.addFace( ppOnCurve2, ppOnCurve3, ppOnCurve4 );
-
 
       /*
       // DEBUG -- check for triangle sides that are too long
@@ -439,79 +416,177 @@ void createSpiral()
   }
 
 
-  //
-  // add end cap
-  //
-
-  LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
-
-  // find average (center) point of cap
-  Vec3D centerPoint = new Vec3D(0, 0, 0);
-  for (Vec3D p : endProfilePoints)
-    centerPoint.addSelf(p);
-  centerPoint.scaleSelf(1.0/numProfilePoints);
-
-  retained.fill(helixColors.get(numPoints-1).toARGB());
-
-  // profile points go clockwise, so we go backwards
-  int j=numProfilePoints;
-
-  while (j>1)
+  if (endcap)
   {
-    --j;
-    Vec3D v0 = endProfilePoints.get(j);
-    Vec3D v1 = endProfilePoints.get(j-1);
+    //
+    // add end cap
+    //
 
-    mesh.addFace( v0, v1, centerPoint);
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
 
-    retained.vertex( v0.x(), v0.y(), v0.z());
-    retained.vertex( v1.x(), v1.y(), v1.z());
-    retained.vertex( centerPoint.x(), centerPoint.y(), centerPoint.z());
-  }
-  /////// finished with end cap
+    // find average (center) point of cap
+    Vec3D centerPoint = new Vec3D(0, 0, 0);
+    for (Vec3D p : endProfilePoints)
+      centerPoint.addSelf(p);
+    centerPoint.scaleSelf(1.0/numProfilePoints);
 
+    //retained.fill(helixColors.get(numPoints-1).toARGB());
 
-  //
-  // add start cap
-  //
- 
-  endProfilePoints = profilesOnCurve.get(0);
+    // profile points go clockwise, so we go backwards
+    int j=numProfilePoints;
 
-  retained.fill(helixColors.get(0).toARGB());
-  
-  // find average (center) point of cap
-  centerPoint.set(0, 0, 0);
-  for (Vec3D p : endProfilePoints)
-    centerPoint.addSelf(p);
-  centerPoint.scaleSelf(1.0/numProfilePoints);
+    while (j>1)
+    {
+      --j;
+      Vec3D v0 = endProfilePoints.get(j);
+      Vec3D v1 = endProfilePoints.get(j-1);
 
-  // profile points go clockwise, but this is the start, so we go clockwise
-  j=0;
-  while (j < numProfilePoints-1)
-  {
-    Vec3D v0 = endProfilePoints.get(j);
-    Vec3D v1 = endProfilePoints.get(j+1);
-
-    mesh.addFace( v0, v1, centerPoint);
-
-    retained.vertex( v0.x(), v0.y(), v0.z());
-    retained.vertex( v1.x(), v1.y(), v1.z());
-    retained.vertex( centerPoint.x(), centerPoint.y(), centerPoint.z());
-    ++j;
+      mesh.addFace( v0, v1, centerPoint);
+    }
+    /////// finished with end cap
   }
 
-  retained.endShape();
-  // update current 3D PShape
-  spiralShape = retained;
 
-  profileShape = pathsToShape2(profilesOnCurve);
-  profileShape.noFill();
-  profileShape.setStroke(color(255,80));
 
-  loop(); // start drawing
+  if (startcap)
+  {
+    //
+    // add start cap
+    //
+
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(0);
+
+    //retained.fill(helixColors.get(0).toARGB());
+
+    // find average (center) point of cap
+    Vec3D centerPoint = new Vec3D(0, 0, 0);
+    for (Vec3D p : endProfilePoints)
+      centerPoint.addSelf(p);
+    centerPoint.scaleSelf(1.0/numProfilePoints);
+
+    // profile points go clockwise, but this is the start, so we go clockwise
+    int j=0;
+    while (j < numProfilePoints-1)
+    {
+      Vec3D v0 = endProfilePoints.get(j);
+      Vec3D v1 = endProfilePoints.get(j+1);
+
+      mesh.addFace( v0, v1, centerPoint);
+
+      ++j;
+    }
+  }
+
+  if (base)
+  {
+   // add last bit that curves to the base below
+   
+    float lastPointsMinZ = 9999;
+    float lastPointsMinX = 9999;
+    float lastPointsMinY = 9999;
+    float lastPointsMaxX = -9999;
+    float lastPointsMaxY = -9999;
+
+
+    LineStrip3D2 curveToBaseProfiles0 = new LineStrip3D2();
+    LineStrip3D2 curveToBaseProfiles1;
+
+    double maxAngle = ((double)PI)/2d;
+
+    // first pass
+    curveToBaseProfiles0.copyVertices(profilesOnCurve.get(0));
+
+    for (Vec3D v : curveToBaseProfiles0)
+    {
+      lastPointsMinZ = min(lastPointsMinZ, v.z());
+      lastPointsMinX = min(lastPointsMinX, v.x());
+      lastPointsMinY = min(lastPointsMinY, v.y());
+
+      lastPointsMaxX = max(lastPointsMaxX, v.x());
+      lastPointsMaxY = max(lastPointsMaxY, v.y());
+    }
+
+    // the rotation axis is x,y portion of the first point in the current curve point b/c they rotate around 0,0,0
+    Vec3D rotationAxis = curveToBaseProfiles0.get(0).copy().setZ(0).getNormalized();
+    println("rotation axis:" + millis());
+    println(rotationAxis);
+
+    // setup cylindrical base
+    float baseStartZ = lastPointsMinZ;
+    float baseEndZ = baseStartZ - distanceBetweenSpirals/2f;
+    //baseEndRadius=baseStartRadius
+    double baseStartRadius = sqrt(lastPointsMinX*lastPointsMinX + lastPointsMinY*lastPointsMinY)* 0.9975d;
+    double baseEndRadius = 1.025d*sqrt(lastPointsMaxX*lastPointsMaxX + lastPointsMaxY*lastPointsMaxY); // add margin...
+    int resolution = 48; // fr the curved segment joining the spiral to the base cylinder
+
+    print("lastPointsMinX:"); 
+    println(lastPointsMinX);
+    print("lastPointsMaxX:"); 
+    println(lastPointsMaxX);   
+
+
+    // ----------------------
+    // generate base geometry
+    // TODO - make this a generic function
+    //
+    LineStrip3D2 c1 = makeHiResCircle3D(new Vec3D(0, 0, baseStartZ), baseStartRadius, resolution);
+    LineStrip3D2 c2 = makeHiResCircle3D(new Vec3D(0, 0, baseStartZ), baseEndRadius, resolution);
+
+    mesh.addMesh( makeMesh(c2, c1));
+
+
+    LineStrip3D2 c3 = makeHiResCircle3D(new Vec3D(0, 0, baseEndZ), baseStartRadius, resolution);
+    LineStrip3D2 c4 = makeHiResCircle3D(new Vec3D(0, 0, baseEndZ), baseEndRadius, resolution);
+
+    mesh.addMesh( makeMesh(c3, c4) );
+
+
+    // inner walls
+    c3 = makeHiResCircle3D(new Vec3D(0, 0, baseStartZ), baseStartRadius, resolution);
+    c4 = makeHiResCircle3D(new Vec3D(0, 0, baseEndZ), baseStartRadius, resolution);
+
+    mesh.addMesh( makeMesh(c3, c4) );
+
+
+    // outer walls
+    c3 = makeHiResCircle3D(new Vec3D(0, 0, baseStartZ), baseEndRadius, resolution);
+    c4 = makeHiResCircle3D(new Vec3D(0, 0, baseEndZ), baseEndRadius, resolution);
+
+    mesh.addMesh( makeMesh(c4, c3) );
+    // 
+    // done with base geometry
+    // -----------------------
+
+
+
+    //for (Vec3D v : profilesOnCurve.get(0))
+    //{
+    //  curveToBaseProfiles0.add(v);
+    //}
+
+    for (double ang = 0f; ang <= maxAngle; ang += maxAngle/8d)
+    { 
+      curveToBaseProfiles1 = new LineStrip3D2(8);
+
+      for (Vec3D v : profilesOnCurve.get(0))
+      {
+        rotationAxis = v.copy().setZ(0).getNormalized();
+
+        Vec3D vr = v.getRotatedAroundAxis(rotationAxis, (float)ang);
+        //vr.setZ( lastPointsMinZ );
+        curveToBaseProfiles1.add( vr );
+      }
+      mesh.addMesh( makeMesh(curveToBaseProfiles1, curveToBaseProfiles0));
+      curveToBaseProfiles0 = curveToBaseProfiles1;
+    }
+  }
+
+  println("spiral finished");
+  println("mesh faces:" + mesh.getNumFaces());
+  println("mesh verts:" + mesh.getNumVertices());
 }
-
-
+// finished createSpiral()
+//
 
 void drawOutVecs()
 {
@@ -552,26 +627,25 @@ void draw()
 
     if (soundRMSShape2 != null)
       shape(soundRMSShape2);
-      
-    hint(ENABLE_DEPTH_TEST);
-  } 
-  else
-  {
-  PGL pgl = beginPGL();
-  //lights();
-  //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
-  // turn on backfce culling to make sure it looks as it will come out...
 
-  // draw dektop 3D printer shape for reference
-  if (drawPrinterBox) shape(printerBoundingBox);
+    hint(ENABLE_DEPTH_TEST);
+  } else
+  {
+    PGL pgl = beginPGL();
+    //lights();
+    //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
+    // turn on backfce culling to make sure it looks as it will come out...
+
+    // draw dektop 3D printer shape for reference
+    if (drawPrinterBox) shape(printerBoundingBox);
 
     //lights();
     // DRAW PSHAPE STUFF
-    
-    pgl.enable(PGL.CULL_FACE);
+
+    //pgl.enable(PGL.CULL_FACE);
     // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
-    pgl.frontFace(PGL.CCW);
-    pgl.cullFace(PGL.BACK);
+    //pgl.frontFace(PGL.CCW);
+    //pgl.cullFace(PGL.BACK);
 
     //pgl.disable(PGL.CULL_FACE);
 
@@ -582,14 +656,14 @@ void draw()
         lights();
         ambientLight(10, 10, 10);
         directionalLight(100, 100, 140, -0.6, 0, -1);
-        
+
         directionalLight(104, 104, 124, 0.6, 0, 1);
-      
+
         shape(spiralShape);
         noLights();
       }
     }
-    
+
     endPGL(); // restores the GL defaults for Processing
     //noLights();
   }
@@ -631,6 +705,8 @@ void draw()
     text("wavSampleRate: " + wavSampleRate, startX, startY );
     startY += fontsize;
     text("RMSSize: " + RMSSize, startX, startY );
+    startY += fontsize;
+    text("elapsed: " + millis(), startX, startY );
 
     cam.endHUD();
     hint(ENABLE_DEPTH_TEST);
@@ -793,7 +869,7 @@ void keyReleased()
     if (!fileChosen) 
     {
       fileChosen = true;
-      background(0, 200, 0);
+      //background(0, 200, 0);
       selectInput("Select a file to process:", "fileSelected");
     }
   }
@@ -960,8 +1036,23 @@ void computeRMS()
   }
 
   rmsAmplitudes = rmsAmplitudesExtended;
-  createSpiral();
+  createSpiral(mesh, false, true, true);
   createRMSVizShapes();
+
+  // set color scheme
+  //helixColors = helixColorTheme.getColors(numPoints);
+
+  helixColorGrad.addColorAt(0, helixStartColor);
+  helixColorGrad.addColorAt(mesh.getNumFaces(), helixEndColor);
+  helixColors = helixColorGrad.calcGradient(0, mesh.getNumFaces());
+
+  //spiralShape = meshToRetained(mesh, helixColors, false);
+  spiralShape = meshToRetained(mesh, false);
+
+  // create profiles shape (for future visualisation)
+  profileShape = pathsToShape2(profilesOnCurve);
+  profileShape.noFill();
+  profileShape.setStroke(color(255, 80));
 }
 
 

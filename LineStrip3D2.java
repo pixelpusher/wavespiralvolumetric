@@ -31,6 +31,20 @@ public class LineStrip3D2 extends LineStrip3D {
    * @param vertices
    *            the vertices to be copied
    */
+  public void copyVertices(LineStrip3D2 otherStrip) {
+    this.vertices.clear(); // clear old references
+    ((ArrayList<Vec3D>)this.vertices).ensureCapacity(otherStrip.size());
+    for (Vec3D vert : otherStrip)
+    {
+      this.vertices.add( vert );
+    }
+  }
+
+
+  /**
+   * @param vertices
+   *            the vertices to be copied
+   */
   public void copyVertices(List<Vec3D> vertices) {
     this.vertices.clear(); // clear old references
     ((ArrayList<Vec3D>)this.vertices).ensureCapacity(vertices.size());
@@ -39,9 +53,8 @@ public class LineStrip3D2 extends LineStrip3D {
       this.vertices.add( vert );
     }
   }
-
+  
   public int size() {
     return this.vertices.size();
   }
 }
-
