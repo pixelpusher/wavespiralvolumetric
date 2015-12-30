@@ -140,3 +140,33 @@ PShape pathsToShape( ArrayList<LineStrip3D> paths)
   return retained;
 }
 
+PShape pathsToShape2( ArrayList<LineStrip3D2> paths)
+{
+  PShape retained = createShape();
+
+  retained.enableStyle();
+  retained.beginShape(LINES);
+  //retained.fill(120,120,0,80);
+  retained.noFill();
+  retained.stroke(255, 180);
+  retained.strokeWeight(2);
+
+
+  for (LineStrip3D2 path : paths)
+  {
+    Iterator<Vec3D> iter = path.iterator();
+    Vec3D currentP = iter.next();
+    Vec3D nextP = currentP;
+
+    while (iter.hasNext ()) 
+    {
+      nextP = iter.next();
+      retained.vertex(currentP.x(), currentP.y(), currentP.z());
+      retained.vertex(nextP.x(), nextP.y(), nextP.z());
+      currentP = nextP;
+    }
+  }
+
+  retained.endShape();
+  return retained;
+}

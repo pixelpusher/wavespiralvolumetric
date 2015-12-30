@@ -39,7 +39,6 @@ PShape spiralShape = null;
 PShape profileShape = null;
 PShape printerBoundingBox = null;
 PShape soundAmpsShape = null, soundRMSShape = null, soundRMSShape2 = null;
-PShader toon;
 
 TriangleMesh mesh = null;
 
@@ -47,21 +46,21 @@ boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverl
 
 String wavFileName = "";
 int wavSampleRate; // sample rate of Wave file
-int diameterQuality = 5;
+int diameterQuality = 10;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
-final int TWEEN_POINTS = 4; // resolution of tween
+final int TWEEN_POINTS = 3; // resolution of tween
 
 
-float turns = 3;
-float spiralThickness = 80.0/turns; // in mm
-float distanceBetweenSpirals = 20.0/turns; // in mm
-float spiralRadius = 40; // in mm
+float turns = 11;
+float spiralThickness = 480.0/turns; // in mm
+float distanceBetweenSpirals = 120.0/turns; // in mm
+float spiralRadius = 8; // in mm
 //float spikiness = 160*3;
-float spikiness = 40;
-float minThickness = 0.15; // percentage, 0 - 1
+float spikiness = 120;
+float minThickness = 0.001; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -105,8 +104,6 @@ void setup()
   cam.setMinimumDistance(-width);
   cam.setMaximumDistance(width*200);
   cam.setResetOnDoubleClick(true);
-
-  toon = loadShader("ToonFrag.glsl", "ToonVert.glsl");
 
   background(0);
   fill(200);
@@ -507,6 +504,10 @@ void createSpiral()
   // update current 3D PShape
   spiralShape = retained;
 
+  profileShape = pathsToShape2(profilesOnCurve);
+  profileShape.noFill();
+  profileShape.setStroke(color(255,80));
+
   loop(); // start drawing
 }
 
@@ -578,15 +579,13 @@ void draw()
     {
       if (spiralShape != null)
       {
-        //shader(toon);
         lights();
-        ambientLight(100, 100, 100);
-        directionalLight(240, 240, 240, -0.6, 0, -1);
+        ambientLight(10, 10, 10);
+        directionalLight(100, 100, 140, -0.6, 0, -1);
         
-        directionalLight(204, 204, 204, 0.6, 0, 1);
+        directionalLight(104, 104, 124, 0.6, 0, 1);
       
         shape(spiralShape);
-        //resetShader();
         noLights();
       }
     }
