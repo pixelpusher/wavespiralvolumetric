@@ -53,8 +53,8 @@ int diameterQuality = 10;
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
-
-float turns = 11;
+float adjust = 0.25f;
+float turns = 5;
 float spiralThickness = 480.0/turns; // in mm
 float distanceBetweenSpirals = 120.0/turns; // in mm
 float spiralRadius = 8; // in mm
@@ -240,17 +240,17 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-    float minRMS = (rmsAmplitudes[i] + minThickness);
+    float minRMS = (rmsAmplitudes[i] + adjust);
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
-    float profileLength =  minThickness*thick + rmsAmplitudes[i]*spikiness;
+    
+    float profileLength =  minThickness*thick + (rmsAmplitudes[i]+adjust)*spikiness;
 
-    spline.add(0, 0);
-    //spline.add(thick*0.1*minRMS, profileLength*0.15);    
+    
+    spline.add(0, 0);    
     spline.add(thick*0.3*minRMS, profileLength*0.1);
-    spline.add(thick*minRMS, profileLength);
+    spline.add(thick*minRMS, profileLength+0.05);
     spline.add(thick*0.4*minRMS, profileLength*0.9);
-    //spline.add(thick*0.15*minRMS, profileLength*0.75);
     spline.add(0, 0); // close spline
 
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
@@ -809,6 +809,20 @@ void keyReleased()
     minThickness*=1.1;
     computeRMS();
     println("minThickness:" + minThickness);
+    loop();
+  } else if (key == 'a')
+  {
+    noLoop();
+    adjust /= 1.2;
+    computeRMS();
+    println("adjust:" + adjust);
+    loop();
+  } else if (key == 'A')
+  {
+    noLoop();
+    adjust *= 1.2;
+    computeRMS();
+    println("adjust:" + adjust);
     loop();
   } else if (key == 'r')
   {

@@ -80,7 +80,7 @@ LineStrip3D2 makeHiResCircle3D(Vec3D pos, double r, int res)
   double radiansPerPoint = TWOPI / res;
 
   double angle = 0d;
-  while (angle < TWOPI+radiansPerPoint)
+  while (angle < TWOPI)
   {
     Vec3D pt = new Vec3D( 
       (float)(Math.cos(angle)*r)+pos.x(), 
