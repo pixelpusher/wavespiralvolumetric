@@ -55,12 +55,12 @@ final int TWEEN_POINTS = 3; // resolution of tween
 
 float adjust = 0.25f;
 float turns = 5;
-float spiralThickness = 480.0/turns; // in mm
-float distanceBetweenSpirals = 120.0/turns; // in mm
-float spiralRadius = 8; // in mm
+float spiralThickness = 48.0/turns; // in mm
+float distanceBetweenSpirals = 12.0/turns; // in mm
+float spiralRadius = 0.8; // in mm
 //float spikiness = 160*3;
-float spikiness = 120;
-float minThickness = 0.001; // percentage, 0 - 1
+float spikiness = 12;
+float minThickness = 0.0001; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -100,9 +100,9 @@ void setup()
 {
   size(1280, 720, P3D);
 
-  cam = new PeasyCam(this, width);
-  cam.setMinimumDistance(-width);
-  cam.setMaximumDistance(width*200);
+  cam = new PeasyCam(this, 200);
+  cam.setMinimumDistance(-5);
+  cam.setMaximumDistance(200);
   cam.setResetOnDoubleClick(true);
 
   background(0);
@@ -454,13 +454,13 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // add start cap
     //
 
-    LineStrip3D2 endProfilePoints = profilesOnCurve.get(0);
+    LineStrip3D2 startProfilePoints = profilesOnCurve.get(0);
 
     //retained.fill(helixColors.get(0).toARGB());
 
     // find average (center) point of cap
     Vec3D centerPoint = new Vec3D(0, 0, 0);
-    for (Vec3D p : endProfilePoints)
+    for (ReadonlyVec3D p : startProfilePoints)
       centerPoint.addSelf(p);
     centerPoint.scaleSelf(1.0/numProfilePoints);
 
@@ -468,8 +468,8 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     int j=0;
     while (j < numProfilePoints-1)
     {
-      Vec3D v0 = endProfilePoints.get(j);
-      Vec3D v1 = endProfilePoints.get(j+1);
+      Vec3D v0 = startProfilePoints.get(j);
+      Vec3D v1 = startProfilePoints.get(j+1);
 
       mesh.addFace( v0, v1, centerPoint);
 
@@ -479,51 +479,57 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
   if (base)
   {
-   // add last bit that curves to the base below
-   
-    float lastPointsMinZ = 9999;
-    float lastPointsMinX = 9999;
-    float lastPointsMinY = 9999;
-    float lastPointsMaxX = -9999;
-    float lastPointsMaxY = -9999;
-
-
-    LineStrip3D2 curveToBaseProfiles0 = new LineStrip3D2();
-    LineStrip3D2 curveToBaseProfiles1;
-
     double maxAngle = ((double)PI)/2d;
-
-    // first pass
-    curveToBaseProfiles0.copyVertices(profilesOnCurve.get(0));
-
-    for (Vec3D v : curveToBaseProfiles0)
-    {
-      lastPointsMinZ = min(lastPointsMinZ, v.z());
-      lastPointsMinX = min(lastPointsMinX, v.x());
-      lastPointsMinY = min(lastPointsMinY, v.y());
-
-      lastPointsMaxX = max(lastPointsMaxX, v.x());
-      lastPointsMaxY = max(lastPointsMaxY, v.y());
-    }
+    
+    //generate curved tail that goes into base
+    LineStrip3D2 curveToBaseProfiles0 = new LineStrip3D2();
+    LineStrip3D2 curveToBaseProfiles1 = new LineStrip3D2(8);  
+    
+    double ang = 0d;
+    double inc = maxAngle/8d;
+    
+    for (int pass = 0; pass <= 8; pass++)
+    { 
+      curveToBaseProfiles1 = new LineStrip3D2(8); 
+      
+      for (ReadonlyVec3D v : profilesOnCurve.get(0))
+      {
+        ReadonlyVec3D rotationAxis = v.copy().setZ(0).getNormalized();
 
     // the rotation axis is x,y portion of the first point in the current curve point b/c they rotate around 0,0,0
-    Vec3D rotationAxis = curveToBaseProfiles0.get(0).copy().setZ(0).getNormalized();
-    println("rotation axis:" + millis());
-    println(rotationAxis);
+    // this is kind of dumb because it's always pointing upwards (X) in this case
 
+        Vec3D vr = v.getRotatedAroundAxis(rotationAxis, (float)ang);
+        curveToBaseProfiles1.add( vr );
+      }
+      //println("meshing base curve");
+      if (pass > 0) mesh.addMesh( makeMesh(curveToBaseProfiles1, curveToBaseProfiles0));
+      curveToBaseProfiles0 = curveToBaseProfiles1;
+      ang += inc;
+    }
+    
+    //println("done base curve");
+    // add last bit that curves to the base below
+   
+    float firstPointsMinZ = 9999;
+    float firstPointsMaxR = -9999;
+    float firstPointsMinR = 9999;
+
+
+    for (ReadonlyVec3D v : curveToBaseProfiles1)
+    {
+      firstPointsMinZ = min(firstPointsMinZ, v.z());
+      float r = v.x()*v.x()+v.y()*v.y();
+      firstPointsMaxR = max(firstPointsMaxR, r);
+      firstPointsMinR = min(firstPointsMinR, r);
+    }
     // setup cylindrical base
-    float baseStartZ = lastPointsMinZ;
+    float baseStartZ = firstPointsMinZ;
     float baseEndZ = baseStartZ - distanceBetweenSpirals/2f;
-    //baseEndRadius=baseStartRadius
-    double baseStartRadius = sqrt(lastPointsMinX*lastPointsMinX + lastPointsMinY*lastPointsMinY)* 0.9975d;
-    double baseEndRadius = 1.025d*sqrt(lastPointsMaxX*lastPointsMaxX + lastPointsMaxY*lastPointsMaxY); // add margin...
-    int resolution = 48; // fr the curved segment joining the spiral to the base cylinder
-
-    print("lastPointsMinX:"); 
-    println(lastPointsMinX);
-    print("lastPointsMaxX:"); 
-    println(lastPointsMaxX);   
-
+    double baseStartRadius = 0.95d*sqrt(firstPointsMinR);
+    double baseEndRadius = 1.25d*sqrt(firstPointsMaxR); // add margin...
+    
+    int resolution = 48; // for the curved segment joining the spiral to the base cylinder
 
     // ----------------------
     // generate base geometry
@@ -547,7 +553,6 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
     mesh.addMesh( makeMesh(c3, c4) );
 
-
     // outer walls
     c3 = makeHiResCircle3D(new Vec3D(0, 0, baseStartZ), baseEndRadius, resolution);
     c4 = makeHiResCircle3D(new Vec3D(0, 0, baseEndZ), baseEndRadius, resolution);
@@ -556,29 +561,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // 
     // done with base geometry
     // -----------------------
-
-
-
-    //for (Vec3D v : profilesOnCurve.get(0))
-    //{
-    //  curveToBaseProfiles0.add(v);
-    //}
-
-    for (double ang = 0f; ang <= maxAngle; ang += maxAngle/8d)
-    { 
-      curveToBaseProfiles1 = new LineStrip3D2(8);
-
-      for (Vec3D v : profilesOnCurve.get(0))
-      {
-        rotationAxis = v.copy().setZ(0).getNormalized();
-
-        Vec3D vr = v.getRotatedAroundAxis(rotationAxis, (float)ang);
-        //vr.setZ( lastPointsMinZ );
-        curveToBaseProfiles1.add( vr );
-      }
-      mesh.addMesh( makeMesh(curveToBaseProfiles1, curveToBaseProfiles0));
-      curveToBaseProfiles0 = curveToBaseProfiles1;
-    }
+    
   }
 
   println("spiral finished");
@@ -635,7 +618,9 @@ void draw()
     //lights();
     //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
     // turn on backfce culling to make sure it looks as it will come out...
-
+    pushMatrix();
+    scale(4);
+    
     // draw dektop 3D printer shape for reference
     if (drawPrinterBox) shape(printerBoundingBox);
 
@@ -678,14 +663,15 @@ void draw()
 
 
     hint(DISABLE_DEPTH_TEST);
-
+    
     if (drawProfiles)
       if (profileShape != null)
         shape(profileShape);
 
     if (drawVecs)
       drawOutVecs();
-
+    popMatrix();
+    
     cam.beginHUD();
 
     textSize(fontsize);
