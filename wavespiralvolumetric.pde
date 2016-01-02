@@ -482,7 +482,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     double maxAngle = ((double)PI)/2d;
     
     //generate curved tail that goes into base
-    LineStrip3D2 curveToBaseProfiles0 = new LineStrip3D2();
+    LineStrip3D2 curveToBaseProfiles0 = profilesOnCurve.get(0);
     LineStrip3D2 curveToBaseProfiles1 = new LineStrip3D2(8);  
     
     double ang = 0d;
@@ -503,7 +503,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
         curveToBaseProfiles1.add( vr );
       }
       //println("meshing base curve");
-      if (pass > 0) mesh.addMesh( makeMesh(curveToBaseProfiles1, curveToBaseProfiles0));
+      mesh.addMesh( makeMesh(curveToBaseProfiles1, curveToBaseProfiles0));
       curveToBaseProfiles0 = curveToBaseProfiles1;
       ang += inc;
     }
