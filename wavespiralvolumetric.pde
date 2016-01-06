@@ -525,7 +525,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     }
     // setup cylindrical base
     float baseStartZ = firstPointsMinZ;
-    float baseEndZ = baseStartZ - distanceBetweenSpirals/2f;
+    float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
     double baseStartRadius = 0.95d*sqrt(firstPointsMinR);
     double baseEndRadius = 1.25d*sqrt(firstPointsMaxR); // add margin...
     
@@ -619,7 +619,7 @@ void draw()
     //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
     // turn on backfce culling to make sure it looks as it will come out...
     pushMatrix();
-    scale(4);
+    scale(5);
     
     // draw dektop 3D printer shape for reference
     if (drawPrinterBox) shape(printerBoundingBox);
@@ -648,7 +648,7 @@ void draw()
         noLights();
       }
     }
-
+    popMatrix();
     endPGL(); // restores the GL defaults for Processing
     //noLights();
   }
@@ -670,7 +670,7 @@ void draw()
 
     if (drawVecs)
       drawOutVecs();
-    popMatrix();
+    
     
     cam.beginHUD();
 
@@ -684,7 +684,11 @@ void draw()
     startY += fontsize;
     text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
     startY += fontsize;
-    text("spiralThickness: " + spiralThickness, startX, startY );
+    text("thickness: " + spiralThickness, startX, startY );
+    startY += fontsize;
+    text("radius: " + spiralRadius, startX, startY );
+    startY += fontsize;
+    text("layer thickness adjust: " + adjust, startX, startY );
     startY += fontsize;
     text("spikiness: " + spikiness, startX, startY );
     startY += fontsize;
