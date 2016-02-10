@@ -45,7 +45,7 @@ TriangleMesh mesh = null;
 boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
 
 String wavFileName = "";
-int wavSampleRate; // sample rate of Wave file
+int wavSampleRate = 1; // sample rate of Wave file
 int diameterQuality = 10;
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
@@ -243,10 +243,10 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     float minRMS = (rmsAmplitudes[i] + adjust);
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
-    
+
     float profileLength =  minThickness*thick + (rmsAmplitudes[i]+adjust)*spikiness;
 
-    
+
     spline.add(0, 0);    
     spline.add(thick*0.3*minRMS, profileLength*0.1);
     spline.add(thick*minRMS, profileLength+0.05);
@@ -480,24 +480,24 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   if (base)
   {
     double maxAngle = ((double)PI)/2d;
-    
+
     //generate curved tail that goes into base
     LineStrip3D2 curveToBaseProfiles0 = profilesOnCurve.get(0);
     LineStrip3D2 curveToBaseProfiles1 = new LineStrip3D2(8);  
-    
+
     double ang = 0d;
     double inc = maxAngle/8d;
-    
+
     for (int pass = 0; pass <= 8; pass++)
     { 
       curveToBaseProfiles1 = new LineStrip3D2(8); 
-      
+
       for (ReadonlyVec3D v : profilesOnCurve.get(0))
       {
         ReadonlyVec3D rotationAxis = v.copy().setZ(0).getNormalized();
 
-    // the rotation axis is x,y portion of the first point in the current curve point b/c they rotate around 0,0,0
-    // this is kind of dumb because it's always pointing upwards (X) in this case
+        // the rotation axis is x,y portion of the first point in the current curve point b/c they rotate around 0,0,0
+        // this is kind of dumb because it's always pointing upwards (X) in this case
 
         Vec3D vr = v.getRotatedAroundAxis(rotationAxis, (float)ang);
         curveToBaseProfiles1.add( vr );
@@ -507,10 +507,10 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
       curveToBaseProfiles0 = curveToBaseProfiles1;
       ang += inc;
     }
-    
+
     //println("done base curve");
     // add last bit that curves to the base below
-   
+
     float firstPointsMinZ = 9999;
     float firstPointsMaxR = -9999;
     float firstPointsMinR = 9999;
@@ -528,7 +528,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
     double baseStartRadius = 0.95d*sqrt(firstPointsMinR);
     double baseEndRadius = 1.25d*sqrt(firstPointsMaxR); // add margin...
-    
+
     int resolution = 48; // for the curved segment joining the spiral to the base cylinder
 
     // ----------------------
@@ -561,7 +561,6 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // 
     // done with base geometry
     // -----------------------
-    
   }
 
   println("spiral finished");
@@ -620,7 +619,7 @@ void draw()
     // turn on backfce culling to make sure it looks as it will come out...
     pushMatrix();
     scale(5);
-    
+
     // draw dektop 3D printer shape for reference
     if (drawPrinterBox) shape(printerBoundingBox);
 
@@ -663,42 +662,46 @@ void draw()
 
 
     hint(DISABLE_DEPTH_TEST);
-    
+
     if (drawProfiles)
       if (profileShape != null)
         shape(profileShape);
 
     if (drawVecs)
       drawOutVecs();
-    
-    
-    cam.beginHUD();
 
-    textSize(fontsize);
-    textAlign(LEFT, BOTTOM);
+    if (soundAmplitudes != null)
+    {
+      cam.beginHUD();
 
-    fill(255);
-    text("file: " + wavFileName, startX, startY );
-    startY += fontsize;
-    text("turns: " + turns, startX, startY );
-    startY += fontsize;
-    text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
-    startY += fontsize;
-    text("thickness: " + spiralThickness, startX, startY );
-    startY += fontsize;
-    text("radius: " + spiralRadius, startX, startY );
-    startY += fontsize;
-    text("layer thickness adjust: " + adjust, startX, startY );
-    startY += fontsize;
-    text("spikiness: " + spikiness, startX, startY );
-    startY += fontsize;
-    text("wavSampleRate: " + wavSampleRate, startX, startY );
-    startY += fontsize;
-    text("RMSSize: " + RMSSize, startX, startY );
-    startY += fontsize;
-    text("elapsed: " + millis(), startX, startY );
+      textSize(fontsize);
+      textAlign(LEFT, BOTTOM);
 
-    cam.endHUD();
+      fill(255);
+      text("file: " + wavFileName, startX, startY );
+      startY += fontsize;
+      text("file length: " + soundAmplitudes.length/(float)wavSampleRate + "sec", startX, startY );
+      startY += fontsize;
+      text("turns: " + turns, startX, startY );
+      startY += fontsize;
+      text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
+      startY += fontsize;
+      text("thickness: " + spiralThickness, startX, startY );
+      startY += fontsize;
+      text("radius: " + spiralRadius, startX, startY );
+      startY += fontsize;
+      text("layer thickness adjust: " + adjust, startX, startY );
+      startY += fontsize;
+      text("spikiness: " + spikiness, startX, startY );
+      startY += fontsize;
+      text("wavSampleRate: " + wavSampleRate, startX, startY );
+      startY += fontsize;
+      text("RMSSize: " + RMSSize + "samps / " + 1000.0*(RMSSize/(float)wavSampleRate) + "ms", startX, startY );
+      startY += fontsize;
+      text("elapsed: " + millis()/1000.0 + "s", startX, startY );
+
+      cam.endHUD();
+    }
     hint(ENABLE_DEPTH_TEST);
   }
 } // end draw
