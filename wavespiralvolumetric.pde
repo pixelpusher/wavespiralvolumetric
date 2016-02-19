@@ -53,14 +53,14 @@ int diameterQuality = 10;
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
-float adjust = 0.25f;
-float turns = 5;
-float spiralThickness = 48.0/turns; // in mm
+float adjust = 0.01f;
+float turns = 3;
+float spiralThickness = 60.0/turns; // in mm
 float distanceBetweenSpirals = 12.0/turns; // in mm
-float spiralRadius = 0.8; // in mm
+float spiralRadius = 0.8f; // in mm
 //float spikiness = 160*3;
-float spikiness = 12;
-float minThickness = 0.0001; // percentage, 0 - 1
+float spikiness = 28f;
+float minThickness = 0.01f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -240,20 +240,112 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-    float minRMS = (rmsAmplitudes[i] + adjust);
+    float currentRMS = (rmsAmplitudes[i] + adjust);
+    float minRMS = (ampMin+adjust);
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
 
-    float profileLength =  minThickness*thick + (rmsAmplitudes[i]+adjust)*spikiness;
+    float yRMS =  currentRMS*spikiness;
+    float yBase = minRMS*spikiness;
+    float y = yRMS;
 
 
-    spline.add(0, 0);    
-    spline.add(thick*0.3*minRMS, profileLength*0.1);
-    spline.add(thick*minRMS, profileLength+0.05);
-    spline.add(thick*0.4*minRMS, profileLength*0.9);
-    spline.add(0, 0); // close spline
+    float xRMS = currentRMS*thick;
+    float xBase = minRMS*thick;
+    float x = xRMS;
 
-    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+
+    /*
+    // pointy on bottom
+     spline.add(0, 0);    
+     spline.add(x*0.4,y*0.66); //underhang
+     spline.add(x,y);
+     spline.add(x*0.66,y*0.3); // overhang
+     spline.add(0, 0); // close spline
+     */
+
+
+    /*
+    //classic inverted
+     // pointy on top
+     // if just reversed would never print because bottom too intricate
+     spline.add(x, x);
+     //spline.add(xBase,yBase);
+     spline.add(x*0.8, x*0.2);
+     //spline.add(xBase*0.66,yBase*0.3); // overhang
+     spline.add(0, 0); // close spline    
+     //spline.add(xBase*0.4,yBase*0.66); //underhang
+     spline.add(x*0.2, x*0.8);
+     //spline.add(xBase,yBase);
+     spline.add(x, x);
+     */
+
+    //LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+
+    /*
+// SIN SPIKES
+     LineStrip2D strip = new LineStrip2D();
+     
+     // pointy on top v2
+     
+     double inc = Math.PI/24;
+     double maxAngle = Math.PI*2d;
+     
+     for (double angle=0; angle<maxAngle; angle+=inc)
+     {
+     double prog = Math.abs(angle/(maxAngle/2) - 1);
+     double xx = prog*x;
+     
+     strip.add((float)(0.5d*xx*(Math.cos(angle+inc*6d)+1d)), (float)(0.5d*xx*(Math.sin(angle+inc*6d)+1d)));
+     }
+     // END SIN SPIKES
+     */
+
+    
+     // SIN SPIKES smoothed
+     LineStrip2D strip = new LineStrip2D();
+     
+     // pointy on top v2    
+     double inc = Math.PI/24d;
+     double maxAngle = Math.PI*2d;
+     double offset = Math.PI/6d;
+     
+     for (double angle=0; angle<maxAngle; angle+=inc)
+     {
+     double prog = Math.abs(angle/(maxAngle/2) - 1);
+     prog = prog*prog; // smoothing
+     prog = prog*prog; //cubic?
+     
+     double xx = (1d-prog)*xBase + prog*x;  //yeah, float/double conversion blah blah
+     
+     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+     }
+     // END SIN SPIKES
+     
+
+    /*
+    // SIN SPIKES smoothed 2
+    LineStrip2D strip = new LineStrip2D();
+
+    // pointy on top v2    
+    double inc = Math.PI/24d;
+    double maxAngle = Math.PI*2d;
+    double offset = Math.PI/2d;
+
+    for (double angle=0; angle<maxAngle; angle+=inc)
+    {
+      double prog = Math.abs(angle/(maxAngle/2) - 1);
+      prog -= 1d;
+      prog = prog*prog; // smoothing
+      prog = prog*prog; //cubic?
+
+      double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
+
+      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+    }
+    // END SIN SPIKES 2
+    */
+
 
     // DEBUG - removed this
     // add profile to internal tube list of profiles 
@@ -416,38 +508,6 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   }
 
 
-  if (endcap)
-  {
-    //
-    // add end cap
-    //
-
-    LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
-
-    // find average (center) point of cap
-    Vec3D centerPoint = new Vec3D(0, 0, 0);
-    for (Vec3D p : endProfilePoints)
-      centerPoint.addSelf(p);
-    centerPoint.scaleSelf(1.0/numProfilePoints);
-
-    //retained.fill(helixColors.get(numPoints-1).toARGB());
-
-    // profile points go clockwise, so we go backwards
-    int j=numProfilePoints;
-
-    while (j>1)
-    {
-      --j;
-      Vec3D v0 = endProfilePoints.get(j);
-      Vec3D v1 = endProfilePoints.get(j-1);
-
-      mesh.addFace( v0, v1, centerPoint);
-    }
-    /////// finished with end cap
-  }
-
-
-
   if (startcap)
   {
     //
@@ -483,16 +543,17 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
     //generate curved tail that goes into base
     LineStrip3D2 curveToBaseProfiles0 = profilesOnCurve.get(0);
-    LineStrip3D2 curveToBaseProfiles1 = new LineStrip3D2(8);  
+    int passes = curveToBaseProfiles0.size();
+    LineStrip3D2 curveToBaseProfiles1 = new LineStrip3D2();  
 
     double ang = 0d;
-    double inc = maxAngle/8d;
+    double inc = ((double)maxAngle)/passes;
 
-    for (int pass = 0; pass <= 8; pass++)
+    for (int pass = 0; pass <= passes; pass++)
     { 
-      curveToBaseProfiles1 = new LineStrip3D2(8); 
+      curveToBaseProfiles1 = new LineStrip3D2(curveToBaseProfiles0.size()); 
 
-      for (ReadonlyVec3D v : profilesOnCurve.get(0))
+      for (ReadonlyVec3D v : curveToBaseProfiles0)
       {
         ReadonlyVec3D rotationAxis = v.copy().setZ(0).getNormalized();
 
@@ -511,6 +572,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     //println("done base curve");
     // add last bit that curves to the base below
 
+
     float firstPointsMinZ = 9999;
     float firstPointsMaxR = -9999;
     float firstPointsMinR = 9999;
@@ -527,9 +589,12 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     float baseStartZ = firstPointsMinZ;
     float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
     double baseStartRadius = 0.95d*sqrt(firstPointsMinR);
-    double baseEndRadius = 1.25d*sqrt(firstPointsMaxR); // add margin...
+    double baseEndRadius = 1.2d*sqrt(firstPointsMaxR); // add margin...
 
     int resolution = 48; // for the curved segment joining the spiral to the base cylinder
+
+    // curveToBaseProfiles0 is the last line strip at the bottom of this shape - now 
+    // make a smooth transition down to it.
 
     // ----------------------
     // generate base geometry
@@ -561,6 +626,37 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // 
     // done with base geometry
     // -----------------------
+  }
+
+
+  if (endcap)
+  {
+    //
+    // add end cap
+    //
+
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
+
+    // find average (center) point of cap
+    Vec3D centerPoint = new Vec3D(0, 0, 0);
+    for (Vec3D p : endProfilePoints)
+      centerPoint.addSelf(p);
+    centerPoint.scaleSelf(1.0/numProfilePoints);
+
+    //retained.fill(helixColors.get(numPoints-1).toARGB());
+
+    // profile points go clockwise, so we go backwards
+    int j=numProfilePoints;
+
+    while (j>1)
+    {
+      --j;
+      Vec3D v0 = endProfilePoints.get(j);
+      Vec3D v1 = endProfilePoints.get(j-1);
+
+      mesh.addFace( v0, v1, centerPoint);
+    }
+    /////// finished with end cap
   }
 
   println("spiral finished");
@@ -1008,15 +1104,20 @@ void computeRMS()
 
     // find average value - could also scale logarithmically
     float RMSAve = RMSSum / float(RMSSize);
-    ampMin = min(ampMin, RMSAve);
-    ampMax = max(ampMax, RMSAve);
 
     rmsAmplitudes[rmsArrayIndex] = sqrt(RMSAve);
+    ampMin = min(ampMin, rmsAmplitudes[rmsArrayIndex]);
+    ampMax = max(ampMax, rmsAmplitudes[rmsArrayIndex]);
+
     rmsAmplitudes2[rmsArrayIndex++] = sqrt(RMSSum2/float(RMSSize));
+
+
 
     //println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
   }
 
+  println("ampMin:" + ampMin);
+  println("ampMax:" + ampMax);
 
   float[] rmsAmplitudesExtended = new float[rmsAmplitudes.length*TWEEN_POINTS];  //leave room for end->start
 
