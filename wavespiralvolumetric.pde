@@ -301,7 +301,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
      // END SIN SPIKES
      */
 
-    
+    /*
      // SIN SPIKES smoothed
      LineStrip2D strip = new LineStrip2D();
      
@@ -314,14 +314,14 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
      {
      double prog = Math.abs(angle/(maxAngle/2) - 1);
      prog = prog*prog; // smoothing
-     prog = prog*prog; //cubic?
+     //prog = prog*prog; //cubic?
      
      double xx = (1d-prog)*xBase + prog*x;  //yeah, float/double conversion blah blah
      
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
      // END SIN SPIKES
-     
+     */
 
     /*
     // SIN SPIKES smoothed 2
@@ -345,6 +345,29 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     }
     // END SIN SPIKES 2
     */
+
+
+     // SIN squared smoothed SPIKES smoothed
+     LineStrip2D strip = new LineStrip2D();
+     
+     // pointy on top v2    
+     double inc = Math.PI/24d;
+     double maxAngle = Math.PI*2d;
+     double offset = Math.PI/6d;
+     
+     for (double angle=0; angle<maxAngle; angle+=inc)
+     {
+     //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
+     double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
+     //prog = prog*prog; // smoothing
+     //prog = prog*prog; //cubic?
+     
+     double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
+     
+     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+     }
+     // END SIN squared SPIKES
+
 
 
     // DEBUG - removed this
