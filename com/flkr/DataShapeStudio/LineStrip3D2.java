@@ -1,14 +1,15 @@
 
 /**
- *  slightly ore efficient LineStrip3D
+ *  slightly more efficient LineStrip3D
  *
  * by Evan Raskob <info@pixelist.info>
  *
  **/
  
+
+package com.flkr.DataShapeStudio;
+
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 

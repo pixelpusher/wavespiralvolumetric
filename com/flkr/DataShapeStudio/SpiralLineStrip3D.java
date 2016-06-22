@@ -22,14 +22,13 @@
 
 // Direction and axis are handled only when getting a point or list of points
 
+package com.flkr.DataShapeStudio;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import toxi.geom.ReadonlyVec3D;
 import toxi.geom.Vec3D;
-import toxi.math.MathUtils;
-
 
 
 public class SpiralLineStrip3D extends LineStrip3D2 {

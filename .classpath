@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path=""/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="C:/Program Files/processing-3.1.1/core/library/core.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/processing-3.1.1/core/library/gluegen-rt.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/processing-3.1.1/core/library/jogl-all.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Evan Raskob/Documents/Processing/libraries/peasycam/library/peasycam.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Evan Raskob/Documents/Processing/libraries/toxiclibscore/library/toxiclibscore.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Evan Raskob/Documents/Processing/libraries/toxiclibs_p5/library/toxiclibs_p5.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Evan Raskob/Documents/Processing/libraries/volumeutils/library/volumeutils.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Evan Raskob/Documents/code/wavespiralvolumetric/code/musicg-1.4.2.0.jar"/>
+	<classpathentry kind="output" path=""/>
+</classpath>
