@@ -79,6 +79,14 @@ static final float log10 = log(10);
 float ampMin = MAX_INT;
 float ampMax = MIN_INT;
 
+/*
+ * format a float asa string with @places decimal places
+ */
+static String fstr(float val, int places)
+{
+  return String.format(java.util.Locale.ROOT,"%."+places+"f", val);
+}
+
 // convert number from 0 to 1 into log scale from 0 to 1
 float logScale(float val, float minVal, float maxVal)
 {
@@ -255,14 +263,14 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     float x = xRMS;
 
 
-    /*
+    
     // pointy on bottom
      spline.add(0, 0);    
      spline.add(x*0.4,y*0.66); //underhang
      spline.add(x,y);
      spline.add(x*0.66,y*0.3); // overhang
      spline.add(0, 0); // close spline
-     */
+     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
 
 
     /*
@@ -346,7 +354,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // END SIN SPIKES 2
     */
 
-
+/*
      // SIN squared smoothed SPIKES smoothed
      LineStrip2D strip = new LineStrip2D();
      
@@ -367,7 +375,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
      // END SIN squared SPIKES
-
+*/
 
 
     // DEBUG - removed this
@@ -959,35 +967,34 @@ void keyReleased()
   } else if (key == 'F')
   {
     // get first part of filename, ignore extension
-    String[] wavname = split(wavFileName, '.');
+    String wavname = split(wavFileName, '.')[0].substring(0,50); // paths have limits of about 255 chars these days
 
-    String fileName = wavname[0] +
-      "--" + nf(hour(), 2) + "." + nf(minute(), 2) + "." + nf(second(), 2) + 
-      "-" +
-      turns +"-" +
-      distanceBetweenSpirals + "-" +
-      spiralThickness + "-" +
-      spiralRadius + "-" +
-      spikiness + "-" +
-      RMSSize + "-" +
+    String fileName = wavname +
+      fstr(turns,2) +"-" +
+      fstr(distanceBetweenSpirals,2) + "-" +
+      fstr(spiralThickness,2) + "-" +
+      fstr(spiralRadius,2) + "-" +
+      fstr(adjust,4) + "-" +
+      fstr(spikiness,2) + "-" +
       wavSampleRate +
       ".png" ;
-    saveFrame(fileName);
+    saveFrame(dataPath(fileName));
   } else if (key == 's')
   {
-
+    
     // get first part of filename, ignore extension
-    String[] wavname = split(wavFileName, '.');
+    String wavname = split(wavFileName, '.')[0].substring(0,50); // paths have limits of about 255 chars these days
 
-    String fileName = wavname[0] +
-      turns +"-" +
-      distanceBetweenSpirals + "-" +
-      spiralThickness + "-" +
-      spiralRadius + "-" +
-      spikiness + "-" +
+    String fileName = wavname +
+      fstr(turns,2) +"-" +
+      fstr(distanceBetweenSpirals,2) + "-" +
+      fstr(spiralThickness,2) + "-" +
+      fstr(spiralRadius,2) + "-" +
+      fstr(adjust,4) + "-" +
+      fstr(spikiness,2) + "-" +
       wavSampleRate +
       ".stl" ;
-    mesh.saveAsSTL(fileName );
+    mesh.saveAsSTL(dataPath(fileName) );
 
     println("saved: " + fileName);
   } else if (key==' ')
