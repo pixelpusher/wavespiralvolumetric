@@ -290,4 +290,3 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
    }
    */
 }
-

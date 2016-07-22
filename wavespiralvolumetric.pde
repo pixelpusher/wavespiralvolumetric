@@ -72,7 +72,7 @@ int RMSSize =1; // will be overriden in fileSelected() function
 
 PeasyCam cam;
 
-LineStrip3D spiral;
+LineStrip3D2 spiral;
 
 static final float log10 = log(10);
 
@@ -158,7 +158,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   // - profilesOnCurve (list of above profiles fit to the 3D spiral curve). Will be cleared and regenerated
   // - 
 
-  spiral.getVertices.clear();
+  spiral.clear();
 
   if (mesh == null) throw new NullPointerException("Mesh cannot be null in createSpiral");
   else
@@ -170,16 +170,16 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   outwardVecs.clear();
   tanVecs.clear();
 
-  for (int i=0; i < numPoints; i++)
+  for (int i=0; i < soundAmplitudes.length; i++)
   {
-    Vec3D vert = new Vec3D(0f, 0f, 150f*float(i)/numPoints);
-    spiral.vertices.add(vert);
+    Vec3D vert = new Vec3D(0f, 0f, 150f*float(i)/soundAmplitudes.length);
+    spiral.add(vert);
 
     outwardVecs.add(new Vec3D(0, 0, 0));
     tanVecs.add(new Vec3D(0, 0, 0));
   }
 
-  for (int i=1; i < numPoints-1; i++)
+  for (int i=1; i < soundAmplitudes.length-1; i++)
   {
     Vec3D tanVec = tanVecs.get(i);
     Vec3D outVec = outwardVecs.get(i);
@@ -209,28 +209,28 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
-  tanVecs.get(numPoints-1).set(tanVecs.get(numPoints-2));
+  tanVecs.get(soundAmplitudes.length-1).set(tanVecs.get(soundAmplitudes.length-2));
 
   outwardVecs.get(0).set(outwardVecs.get(1));
-  outwardVecs.get(numPoints-1).set(outwardVecs.get(numPoints-2));
+  outwardVecs.get(soundAmplitudes.length-1).set(outwardVecs.get(soundAmplitudes.length-2));
 
   //
   // generate the profiles for each segment of the tube, based on RMS volume 
   // 
   profiles.clear();
-  profiles.ensureCapacity(numPoints);
+  profiles.ensureCapacity(soundAmplitudes.length);
 
   profilesOnCurve.clear();
-  profilesOnCurve.ensureCapacity(numPoints);
+  profilesOnCurve.ensureCapacity(soundAmplitudes.length);
 
 
-  for (int i=0; i<numPoints; i++)
+  for (int i=0; i<soundAmplitudes.length; i++)
   {
     Spline2D spline = new Spline2D();
     float currentRMS = (rmsAmplitudes[i] + adjust);
     float minRMS = (ampMin+adjust);
-    float thick = spiral.getEdgeThickness();
-    float spiralRadius = spiral.getRadius();
+    float thick = spiralThickness;
+    //float spiralRadius = spiral.getRadius();
 
     float yRMS =  currentRMS*spikiness;
     float yBase = minRMS*spikiness;
@@ -381,7 +381,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   // store the previously calculated points for the bezier surface in between profile rings
   Vec3D[] prevInterpPoints = new Vec3D[TWEEN_POINTS]; 
 
-  for (int i=0; i < numPoints-1; i++)
+  for (int i=0; i < soundAmplitudes.length-1; i++)
   {
     LineStrip2D profilePointsC = profiles.get(i);
     LineStrip2D profilePointsN = profiles.get(i+1);
@@ -512,9 +512,9 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
 
   // sanity check - profiles on curve should be same length as 2D profiles
-  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != numPoints )
+  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != soundAmplitudes.length )
   {
-    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + numPoints);
+    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + soundAmplitudes.length);
   }
 
 
@@ -645,7 +645,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // add end cap
     //
 
-    LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(soundAmplitudes.length-1);
 
     // find average (center) point of cap
     Vec3D centerPoint = new Vec3D(0, 0, 0);
