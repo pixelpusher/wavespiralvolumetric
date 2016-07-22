@@ -72,7 +72,7 @@ int RMSSize =1; // will be overriden in fileSelected() function
 
 PeasyCam cam;
 
-SpiralLineStrip3D spiral;
+LineStrip3D spiral;
 
 static final float log10 = log(10);
 
@@ -134,19 +134,8 @@ void setup()
 
   text("hit space", 10, 20);
 
-  spiral = new SpiralLineStrip3D( new Vec3D(0, 0, 0), new Vec3D(0, 0, 1) );
-  /*
-  spiral.setRadius( this.width/3, false)
-   .setTurns(turns, false)
-   .setDistanceBetweenTurns(this.height/(turns*2), false)
-   .setNumPoints(int(turns) * 12, false)
-   .setEdgeThickness( this.height/(turns*8) ); 
-   */
+  spiral = new LineStrip3D2();
 
-  spiral.setTurns(turns, false)
-    .setRadius(spiralRadius, false)
-    .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-    .setEdgeThickness(spiralThickness, false);
 
   profiles = new ArrayList<LineStrip2D>();
   outwardVecs = new ArrayList<Vec3D>();
@@ -169,25 +158,12 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   // - profilesOnCurve (list of above profiles fit to the 3D spiral curve). Will be cleared and regenerated
   // - 
 
+  spiral.getVertices.clear();
 
   if (mesh == null) throw new NullPointerException("Mesh cannot be null in createSpiral");
   else
     mesh.clear();
 
-
-  // set number of points
-  spiral.setTurns(turns, false)
-    .setRadius(spiralRadius, false)
-    .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-    .setEdgeThickness(spiralThickness, false)
-    .setNumPoints(rmsAmplitudes.length);
-
-  println("total spiral points:" + spiral.getNumPoints() + " / " + rmsAmplitudes.length);
-
-  // calculate tangents and outwards facing vectors
-  // take the next point and subtract from previous point to get inwards pointing vector
-
-  int numPoints = spiral.getNumPoints();
 
   println("DEBUG:: setting up tangent and outwards vectors");
 
@@ -196,6 +172,9 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
   for (int i=0; i < numPoints; i++)
   {
+    Vec3D vert = new Vec3D(0f, 0f, 150f*float(i)/numPoints);
+    spiral.vertices.add(vert);
+
     outwardVecs.add(new Vec3D(0, 0, 0));
     tanVecs.add(new Vec3D(0, 0, 0));
   }

@@ -57,4 +57,9 @@ public class LineStrip3D2 extends LineStrip3D {
   public int size() {
     return this.vertices.size();
   }
+  
+  public void clear()
+  {
+    this.vertices.clear();
+  }
 }
