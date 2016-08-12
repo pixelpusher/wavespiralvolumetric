@@ -967,15 +967,17 @@ void keyReleased()
   } else if (key == 'F')
   {
     // get first part of filename, ignore extension
-    String wavname = split(wavFileName, '.')[0].substring(0,50); // paths have limits of about 255 chars these days
+    String wavname = split(wavFileName, '.')[0];
+    wavname = wavname.substring(0, min(wavname.length(),40)); // paths have limits of about 255 chars these days
 
-    String fileName = wavname +
+    String fileName = wavname + " " +
       fstr(turns,2) +"-" +
       fstr(distanceBetweenSpirals,2) + "-" +
       fstr(spiralThickness,2) + "-" +
       fstr(spiralRadius,2) + "-" +
       fstr(adjust,4) + "-" +
       fstr(spikiness,2) + "-" +
+      RMSSize + "-" +
       wavSampleRate +
       ".png" ;
     saveFrame(dataPath(fileName));
@@ -983,15 +985,17 @@ void keyReleased()
   {
     
     // get first part of filename, ignore extension
-    String wavname = split(wavFileName, '.')[0].substring(0,50); // paths have limits of about 255 chars these days
+    String wavname = split(wavFileName, '.')[0];
+    wavname = wavname.substring(0, min(wavname.length(),40)); // paths have limits of about 255 chars these days
 
-    String fileName = wavname +
+ String fileName = wavname + " " +
       fstr(turns,2) +"-" +
       fstr(distanceBetweenSpirals,2) + "-" +
       fstr(spiralThickness,2) + "-" +
       fstr(spiralRadius,2) + "-" +
       fstr(adjust,4) + "-" +
       fstr(spikiness,2) + "-" +
+      RMSSize + "-" +
       wavSampleRate +
       ".stl" ;
     mesh.saveAsSTL(dataPath(fileName) );
