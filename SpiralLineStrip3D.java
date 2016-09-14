@@ -29,6 +29,7 @@ import java.util.List;
 import toxi.geom.ReadonlyVec3D;
 import toxi.geom.Vec3D;
 import toxi.math.MathUtils;
+import processing.core.PApplet;
 
 
 
@@ -187,10 +188,8 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   public SpiralLineStrip3D recalculate()
   {
 
-    if (turns < 1)
-    {
-      turns = 1; // avoid divide by 0
-    }
+    turns = PApplet.max(0.0001f,turns);
+    
 
     double totalRadians = Math.PI * 2d * this.turns;
     double radiansPerPoint = totalRadians / this.numPoints;
@@ -290,4 +289,3 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
    }
    */
 }
-
