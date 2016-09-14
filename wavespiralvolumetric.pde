@@ -1,4 +1,4 @@
-// 3d sound spiral generator
+// 3d sound spiral generator //<>// //<>// //<>// //<>// //<>// //<>//
 //  by evan raskob evanraskob@gmail.com
 // wave code uses code from http://code.google.com/p/musicg/
 //
@@ -47,6 +47,7 @@ boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverl
 String wavFileName = "";
 int wavSampleRate = 1; // sample rate of Wave file
 int diameterQuality = 10;
+byte numShapeSegments = 5; // how many segments to chop this into when saving
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
@@ -84,7 +85,7 @@ float ampMax = MIN_INT;
  */
 static String fstr(float val, int places)
 {
-  return String.format(java.util.Locale.ROOT,"%."+places+"f", val);
+  return String.format(java.util.Locale.ROOT, "%."+places+"f", val);
 }
 
 // convert number from 0 to 1 into log scale from 0 to 1
@@ -151,7 +152,7 @@ void setup()
 // optional start and end caps.  Input mesh can be null.
 //
 
-void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
+void createSpiral(float[] data, int startIndex, int endIndex, TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
 {  
   // requires:
   // - profiles (list of circular profiles for each tube segment).  Will be cleared and regenerated
@@ -164,22 +165,30 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   else
     mesh.clear();
 
+  if (endIndex <=0 ) endIndex = data.length;
+  int dataLength = endIndex - startIndex;
+  if ( dataLength <= 0) 
+  {
+    println("no data to use (start and end indices are equal or less than 0):" + dataLength);
+    return;
+  }
+
 
   println("DEBUG:: setting up tangent and outwards vectors");
 
   outwardVecs.clear();
   tanVecs.clear();
 
-  for (float i=0; i < rmsAmplitudes.length; i++)
+  for (float i=startIndex; i < endIndex; i++)
   {
-    Vec3D vert = new Vec3D(150f*i/rmsAmplitudes.length,0f, 0f);
+    Vec3D vert = new Vec3D(150f*i/dataLength, 0f, 0f);
     spiral.add(vert);
 
     outwardVecs.add(new Vec3D(0, 0, 0));
     tanVecs.add(new Vec3D(0, 0, 0));
   }
 
-  for (int i=1; i < rmsAmplitudes.length-1; i++)
+  for (int i=1; i < dataLength-1; i++)
   {
     Vec3D tanVec = tanVecs.get(i);
     Vec3D outVec = outwardVecs.get(i);
@@ -204,33 +213,32 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
     Vec3D po = outwardVecs.get(i-1);
     //outVec.set(v0.add(v1).interpolateTo(po,0.1)); // try to smooth it a bit...
-   // Vec3D newOutVec = (v0.add(v1)).normalize();
-   
+    // Vec3D newOutVec = (v0.add(v1)).normalize();
+
     outVec.set(0f, 1f, 0f );
     //outVec.normalize();
-    
   }
 
   ArrayList<Vec3D> smoothOutVecs = new ArrayList<Vec3D>();
 
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
-  tanVecs.get(rmsAmplitudes.length-1).set(tanVecs.get(rmsAmplitudes.length-2));
+  tanVecs.get(dataLength-1).set(tanVecs.get(dataLength-2));
 
   outwardVecs.get(0).set(outwardVecs.get(1));
-  outwardVecs.get(rmsAmplitudes.length-1).set(outwardVecs.get(rmsAmplitudes.length-2));
+  outwardVecs.get(dataLength-1).set(outwardVecs.get(dataLength-2));
 
   //
   // generate the profiles for each segment of the tube, based on RMS volume 
   // 
   profiles.clear();
-  profiles.ensureCapacity(rmsAmplitudes.length);
+  profiles.ensureCapacity(dataLength);
 
   profilesOnCurve.clear();
-  profilesOnCurve.ensureCapacity(rmsAmplitudes.length);
+  profilesOnCurve.ensureCapacity(dataLength);
 
 
-  for (int i=0; i < rmsAmplitudes.length; i++) //<>//
+  for (int i=0; i < dataLength; i++)
   {
     Spline2D spline = new Spline2D();
     float currentRMS = (rmsAmplitudes[i] + adjust);
@@ -248,17 +256,17 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     float x = xRMS;
 
 
-    
+
     // pointy on bottom
-     spline.add(0, adjust*spikiness*0.3);    
-     spline.add(x*0.4,y*0.66); //underhang
-     spline.add(x,y);
-     spline.add(x*0.66,y*0.3); // overhang
-     spline.add(adjust*thick*0.4, 0);
-     //spline.add(0, 0.1);
-     // close spline
-     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-      strip.add(0, adjust*spikiness*0.3); 
+    spline.add(0, adjust*spikiness*0.3);    
+    spline.add(x*0.4, y*0.66); //underhang
+    spline.add(x, y);
+    spline.add(x*0.66, y*0.3); // overhang
+    spline.add(adjust*thick*0.4, 0);
+    //spline.add(0, 0.1);
+    // close spline
+    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+    strip.add(0, adjust*spikiness*0.3); 
 
     /*
     //classic inverted
@@ -320,28 +328,28 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
 
     /*
     // SIN SPIKES smoothed 2
-    LineStrip2D strip = new LineStrip2D();
+     LineStrip2D strip = new LineStrip2D();
+     
+     // pointy on top v2    
+     double inc = Math.PI/24d;
+     double maxAngle = Math.PI*2d;
+     double offset = Math.PI/2d;
+     
+     for (double angle=0; angle<maxAngle; angle+=inc)
+     {
+     double prog = Math.abs(angle/(maxAngle/2) - 1);
+     prog -= 1d;
+     prog = prog*prog; // smoothing
+     prog = prog*prog; //cubic?
+     
+     double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
+     
+     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+     }
+     // END SIN SPIKES 2
+     */
 
-    // pointy on top v2    
-    double inc = Math.PI/24d;
-    double maxAngle = Math.PI*2d;
-    double offset = Math.PI/2d;
-
-    for (double angle=0; angle<maxAngle; angle+=inc)
-    {
-      double prog = Math.abs(angle/(maxAngle/2) - 1);
-      prog -= 1d;
-      prog = prog*prog; // smoothing
-      prog = prog*prog; //cubic?
-
-      double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
-
-      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-    }
-    // END SIN SPIKES 2
-    */
-
-/*
+    /*
      // SIN squared smoothed SPIKES smoothed
      LineStrip2D strip = new LineStrip2D();
      
@@ -362,10 +370,10 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
      // END SIN squared SPIKES
-*/
+     */
 
 
-    // DEBUG - removed this //<>//
+    // DEBUG - removed this
     // add profile to internal tube list of profiles 
     //profiles.add(strip.add(strip.get(0)));
 
@@ -381,7 +389,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   //
   // BUILDING MESH AND PSHAPE ----------------------=------------
   //
- //<>//
+
   // iterate through all profiles and build 3D mesh
 
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
@@ -389,7 +397,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
   // store the previously calculated points for the bezier surface in between profile rings
   Vec3D[] prevInterpPoints = new Vec3D[TWEEN_POINTS]; 
 
-  for (int i=0; i < rmsAmplitudes.length-1; i++)
+  for (int i=0; i < dataLength-1; i++)
   {
     LineStrip2D profilePointsC = profiles.get(i);
     LineStrip2D profilePointsN = profiles.get(i+1);
@@ -518,11 +526,11 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     }
   }
 
- //<>//
+
   // sanity check - profiles on curve should be same length as 2D profiles
-  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != rmsAmplitudes.length )
+  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != dataLength )
   {
-    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + rmsAmplitudes.length);
+    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + dataLength);
   }
 
 
@@ -547,7 +555,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     while (j < numProfilePoints-1)
     {
       Vec3D v0 = startProfilePoints.get(j);
-      Vec3D v1 = startProfilePoints.get(j+1); //<>//
+      Vec3D v1 = startProfilePoints.get(j+1);
 
       mesh.addFace( v0, v1, centerPoint);
 
@@ -588,7 +596,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     }
 
     //println("done base curve");
-    // add last bit that curves to the base below //<>//
+    // add last bit that curves to the base below
 
 
     float firstPointsMinZ = 9999;
@@ -653,7 +661,7 @@ void createSpiral(TriangleMesh mesh, boolean startcap, boolean endcap, boolean b
     // add end cap
     //
 
-    LineStrip3D2 endProfilePoints = profilesOnCurve.get(rmsAmplitudes.length-1);
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(dataLength-1);
 
     // find average (center) point of cap
     Vec3D centerPoint = new Vec3D(0, 0, 0);
@@ -708,7 +716,7 @@ void drawOutVecs()
     vertex(v.scale(10).add(spiral.get(i)));
     i++;
   }
-  
+
   endShape();
 }
 
@@ -965,39 +973,49 @@ void keyReleased()
   {
     // get first part of filename, ignore extension
     String filenameNoExt = split(wavFileName, '.')[0];
-    String wavname = filenameNoExt.substring(0,min(filenameNoExt.length(),50)); // paths have limits of about 255 chars these days
+    String wavname = filenameNoExt.substring(0, min(filenameNoExt.length(), 50)); // paths have limits of about 255 chars these days
 
     String fileName = wavname + ".lin." + 
-      fstr(turns,2) +"-" +
-      fstr(distanceBetweenSpirals,2) + "-" +
-      fstr(spiralThickness,2) + "-" +
-      fstr(spiralRadius,2) + "-" +
-      fstr(adjust,4) + "-" +
-      fstr(spikiness,2) + "-" +
+      fstr(turns, 2) +"-" +
+      fstr(distanceBetweenSpirals, 2) + "-" +
+      fstr(spiralThickness, 2) + "-" +
+      fstr(spiralRadius, 2) + "-" +
+      fstr(adjust, 4) + "-" +
+      fstr(spikiness, 2) + "-" +
       RMSSize + "-" +
       wavSampleRate +
       ".png" ;
     saveFrame(dataPath(fileName));
   } else if (key == 's')
   {
-    
+
+
+
     // get first part of filename, ignore extension
     String filenameNoExt = split(wavFileName, '.')[0];
-    String wavname = filenameNoExt.substring(0,min(filenameNoExt.length(),50)); // paths have limits of about 255 chars these days
+    String wavname = filenameNoExt.substring(0, min(filenameNoExt.length(), 50)); // paths have limits of about 255 chars these days
 
-    String fileName = wavname + ".lin." + 
-      fstr(turns,2) +"-" +
-      fstr(distanceBetweenSpirals,2) + "-" +
-      fstr(spiralThickness,2) + "-" +
-      fstr(spiralRadius,2) + "-" +
-      fstr(adjust,4) + "-" +
-      fstr(spikiness,2) + "-" +
-      RMSSize + "-" +
-      wavSampleRate +
-      ".stl" ;
-    mesh.saveAsSTL(dataPath(fileName) );
+    int segmentSize = rmsAmplitudes.length/numShapeSegments;
 
-    println("saved: " + fileName);
+    for (int i=0; i < numShapeSegments; i++)
+    {
+      println("segments:" + segmentSize*i + " " + segmentSize*(i+1));
+      createSpiral(rmsAmplitudes, segmentSize*i, segmentSize*(i+1), mesh, true, true, false);
+
+      String fileName = wavname + ".lin-" + nf(i, 3) + "." +
+        fstr(turns, 2) +"-" +
+        fstr(distanceBetweenSpirals, 2) + "-" +
+        fstr(spiralThickness, 2) + "-" +
+        fstr(spiralRadius, 2) + "-" +
+        fstr(adjust, 4) + "-" +
+        fstr(spikiness, 2) + "-" +
+        RMSSize + "-" +
+        wavSampleRate +
+        ".stl" ;
+      mesh.saveAsSTL(dataPath(fileName) );
+
+      println("saved: " + fileName);
+    }
   } else if (key==' ')
   { 
     if (!fileChosen) 
@@ -1175,7 +1193,8 @@ void computeRMS()
   }
 
   rmsAmplitudes = rmsAmplitudesExtended;
-  createSpiral(mesh, true, true, false);
+  // use entire sound segment
+  createSpiral(rmsAmplitudes, 0, -1, mesh, true, true, false);
   createRMSVizShapes();
 
   // set color scheme
