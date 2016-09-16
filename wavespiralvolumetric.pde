@@ -256,7 +256,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-    float currentRMS = (rmsAmplitudes[i+startIndex] + adjust);
+    float currentRMS = (data[i+startIndex] + adjust);
     float minRMS = (ampMin+adjust);
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
