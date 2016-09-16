@@ -241,7 +241,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, TriangleMesh mesh,
   for (int i=0; i < dataLength; i++)
   {
     Spline2D spline = new Spline2D();
-    float currentRMS = (rmsAmplitudes[i] + adjust);
+    float currentRMS = (data[i+startIndex] + adjust);
     float minRMS = (ampMin+adjust);
     float thick = spiralThickness;
     //float spiralRadius = spiral.getRadius();
