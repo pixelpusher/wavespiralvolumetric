@@ -55,7 +55,7 @@ BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolati
 final int TWEEN_POINTS = 3; // resolution of tween
 
 float adjust = 0.01f;
-float turns = 3;
+float turns = 4;
 float spiralThickness = 60.0/turns; // in mm
 float distanceBetweenSpirals = 12.0/turns; // in mm
 float spiralRadius = 0.8f; // in mm
@@ -274,9 +274,9 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
 
     // pointy on bottom
     spline.add(0, 0);    
-    spline.add(x*0.4, y*0.66); //underhang
+    spline.add(x*0.66, y*0.4); //underhang
     spline.add(x, y);
-    spline.add(x*0.66, y*0.3); // overhang
+    spline.add(x*0.3, y*0.66); // overhang
     spline.add(0, 0); // close spline
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
 
