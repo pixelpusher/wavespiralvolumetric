@@ -47,7 +47,7 @@ boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverl
 String wavFileName = "";
 int wavSampleRate = 1; // sample rate of Wave file
 int diameterQuality = 10;
-byte numShapeSegments = 5; // how many segments to chop this into when saving
+byte numShapeSegments = 6; // how many segments to chop this into when saving
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
@@ -238,7 +238,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, TriangleMesh mesh,
   profilesOnCurve.ensureCapacity(dataLength);
 
 
-  for (int i=0; i < dataLength; i++)
+  for (int i=startIndex; i < endIndex; i++)
   {
     Spline2D spline = new Spline2D();
     float currentRMS = (rmsAmplitudes[i] + adjust);
@@ -988,9 +988,6 @@ void keyReleased()
     saveFrame(dataPath(fileName));
   } else if (key == 's')
   {
-
-
-
     // get first part of filename, ignore extension
     String filenameNoExt = split(wavFileName, '.')[0];
     String wavname = filenameNoExt.substring(0, min(filenameNoExt.length(), 50)); // paths have limits of about 255 chars these days
