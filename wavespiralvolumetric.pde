@@ -43,28 +43,36 @@ PShape soundAmpsShape = null, soundRMSShape = null, soundRMSShape2 = null;
 TriangleMesh mesh = null;
 
 boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
+private Vec3D modelBounds; // size of actual generated model
 
 String wavFileName = "";
 int wavSampleRate = 1; // sample rate of Wave file
 int diameterQuality = 10;
-int numShapeSegments = 4; // how many segments per spiral to chop this into when saving
+int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
 
 //metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
+float BaseThickness = 4; //mm
+
+float adjustFactor = 10; // for 3D translation into mm
 float adjust = 0.01f;
-float turns = 4;
-float spiralThickness = 60.0/turns; // in mm
-float distanceBetweenSpirals = 12.0/turns; // in mm
-float spiralRadius = 0.8f; // in mm
+float turns = 3.5;
+float spiralThickness = 12.0/turns; // in mm
+float distanceBetweenSpirals = adjustFactor*20.0/turns; // in mm
+float spiralRadius = adjustFactor*0.8f; // in mm
 //float spikiness = 160*3;
-float spikiness = 28f;
+float spikiness = 6.1f;
 float minThickness = 0.01f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
+
+float totalHeight = turns*distanceBetweenSpirals+BaseThickness;
+
+
 
 //(int)(44100.0*12.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal 22
@@ -109,9 +117,9 @@ void setup()
 {
   size(1280, 720, P3D);
 
-  cam = new PeasyCam(this, 200);
+  cam = new PeasyCam(this, 800);
   cam.setMinimumDistance(-5);
-  cam.setMaximumDistance(200);
+  cam.setMaximumDistance(2000);
   cam.setResetOnDoubleClick(true);
 
   background(0);
@@ -256,7 +264,9 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   for (int i=0; i<numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-    float currentRMS = (data[i+startIndex] + adjust);
+    // FIXME
+    float currentRMS = (0.5f + adjust);
+    //float currentRMS = (data[i+startIndex] + adjust);
     float minRMS = (ampMin+adjust);
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
@@ -580,6 +590,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   {
     double maxAngle = ((double)PI)/2d;
 
+
     //generate curved tail that goes into base
     LineStrip3D2 curveToBaseProfiles0 = profilesOnCurve.get(0);
     int passes = curveToBaseProfiles0.size();
@@ -626,9 +637,12 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     }
     // setup cylindrical base
     float baseStartZ = firstPointsMinZ;
-    float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
-    double baseStartRadius = 0.95d*sqrt(firstPointsMinR);
-    double baseEndRadius = 1.2d*sqrt(firstPointsMaxR); // add margin...
+    // FIXME
+    //float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
+    float baseEndZ = baseStartZ - BaseThickness; //mm
+    
+    double baseStartRadius = 0.90d*sqrt(firstPointsMinR);
+    double baseEndRadius = 1.05d*sqrt(firstPointsMaxR); // add margin...
 
     int resolution = 48; // for the curved segment joining the spiral to the base cylinder
 
@@ -701,6 +715,16 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   println("spiral finished");
   println("mesh faces:" + mesh.getNumFaces());
   println("mesh verts:" + mesh.getNumVertices());
+  
+  AABB modelBoundsAABB = mesh.getBoundingBox();
+  modelBounds = modelBoundsAABB.getExtent().scaleSelf(2*0.0393701);
+  println("model bounds in inches:"+ modelBounds);
+  
+  totalHeight = turns*distanceBetweenSpirals+BaseThickness;
+  
+  println("Model is " + totalHeight + "mm tall");
+  println("= " + (0.0393701*totalHeight));
+  
 }
 // finished createSpiral()
 //
@@ -989,21 +1013,29 @@ void keyReleased()
       wavSampleRate +
       ".png" ;
     saveFrame(dataPath(fileName));
-  } else if (key == 's')
+  }
+  else if (key == 's')
   {
-
+    println("SAVING!!!!");
     // get first part of filename, ignore extension
     String wavname = split(wavFileName, '.')[0];
     wavname = wavname.substring(0, min(wavname.length(), 40)); // paths have limits of about 255 chars these days
 
-    int segmentSize = int(rmsAmplitudes.length/(turns*numShapeSegments));
+    int segmentSize = rmsAmplitudes.length;
+    int segmentChunks = 1;
+    if (numShapeSegments > 1) 
+    {
+      segmentSize = int(rmsAmplitudes.length/(turns*numShapeSegments));
+      segmentChunks = (int)turns;
+    }
+    
     println("seg turns: " + 1f/numShapeSegments);
 
-    for (int i=0; i < numShapeSegments*turns; i++)
+    for (int i=0; i < segmentChunks; i++)
     {
       println("segments:" + segmentSize*i + " " + segmentSize*(i+1));
       boolean base = (i==0);
-      createSpiral(rmsAmplitudes, segmentSize*i, segmentSize*(i+1), 1f/numShapeSegments, mesh, !base, true, base);
+      //createSpiral(rmsAmplitudes, segmentSize*i, segmentSize*(i+1), 1f/numShapeSegments, mesh, !base, true, base);
 
       String fileName = wavname + ".lin-" + nf(i, 3) + "." +
         fstr(turns, 2) +"-" +
@@ -1200,7 +1232,7 @@ void computeRMS()
 
   rmsAmplitudes = rmsAmplitudesExtended;
   // use entire sound segment
-  createSpiral(rmsAmplitudes, 0, -1, turns, mesh, true, false, true);
+  createSpiral(rmsAmplitudes, 0, -1, turns, mesh, false, true, true);
 
   createRMSVizShapes();
 

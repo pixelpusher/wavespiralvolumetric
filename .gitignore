@@ -2,3 +2,7 @@
 *.stl
 *.jpg
 .DS_Store
+/LineStrip3D2.class
+/SpiralLineStrip3D.class
+.classpath
+.project
