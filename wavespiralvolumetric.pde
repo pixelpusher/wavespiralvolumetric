@@ -45,12 +45,9 @@ TriangleMesh mesh = null;
 boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
 private Vec3D modelBounds; // size of actual generated model
 
-String wavFileName = "";
-int wavSampleRate = 1; // sample rate of Wave file
-int diameterQuality = 10;
+int diameterQuality = 10; // for spline profile
 int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
-
-//metal 3 sec - 6,0,60,90,120,0.125,44100 *1*1.1/500.0
+int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
@@ -68,28 +65,19 @@ float spikiness = 23.164747f;
 float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
-int RMSSize =1; // will be overriden in fileSelected() function
 
-float totalHeight = turns*distanceBetweenSpirals+BaseThickness;
-
+float totalHeight = turns*distanceBetweenSpirals+BaseThickness; // guesstimate for reference
 
 
-//(int)(44100.0*12.0/(6.0*40.0)); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
-// metal 22
-//int RMSSize = (int)(44100*2/turns / 100); // total length is 24.472 which encompasses 22 whole strides
-// with 100 rms divisions per 360 degrees (e.g. per turn)
+PeasyCam cam; // 3d camera
 
-PeasyCam cam;
-
-SpiralLineStrip3D spiral;
+SpiralLineStrip3D spiral; // basic line rendering of spiral (helix) shape in 3D 
 
 static final float log10 = log(10);
 
-float ampMin = MAX_INT;
-float ampMax = MIN_INT;
 
 /*
- * format a float asa string with @places decimal places
+ * format a float @val as a string with @places decimal places
  */
 static String fstr(float val, int places)
 {
@@ -100,7 +88,6 @@ static String fstr(float val, int places)
 float logScale(float val, float minVal, float maxVal)
 {
   val = map(val, minVal, maxVal, 1, 10);
-  //val *= val;
   return log(val)/log10;
 }
 
@@ -108,7 +95,6 @@ float logScale(float val, float minVal, float maxVal)
 float revLogScale(float val, float minVal, float maxVal)
 {
   val = map(val, minVal, maxVal, 10, 1);
-  //val *= val;
   return log(val)/log10;
 }
 
@@ -117,6 +103,7 @@ void setup()
 {
   size(1280, 720, P3D);
 
+  // set up 3D view
   cam = new PeasyCam(this, 800);
   cam.setMinimumDistance(-5);
   cam.setMaximumDistance(2000);
@@ -162,7 +149,7 @@ void setup()
   tanVecs = new ArrayList<Vec3D>();
   profilesOnCurve = new ArrayList<LineStrip3D2>();  
 
-  noLoop(); //turn off loop until needed
+  generateSpiralShapes();
 }
 
 
@@ -172,7 +159,7 @@ void setup()
 //
 
 
-void createSpiral(float[] data, int startIndex, int endIndex, float _turns, TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
+void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
 {  
   // requires:
   // - profiles (list of circular profiles for each tube segment).  Will be cleared and regenerated
@@ -183,7 +170,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   else
     mesh.clear();
 
-  if (endIndex <=0 ) endIndex = data.length;
+  if (endIndex <=0 ) endIndex = numPoints;
   int dataLength = endIndex - startIndex;
   if ( dataLength <= 0) 
   {
@@ -203,20 +190,20 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   // calculate tangents and outwards facing vectors
   // take the next point and subtract from previous point to get inwards pointing vector
 
-  int numPoints = spiral.getNumPoints();
+  int _numPoints = spiral.getNumPoints();
 
   println("DEBUG:: setting up tangent and outwards vectors");
 
   outwardVecs.clear();
   tanVecs.clear();
 
-  for (int i=0; i < numPoints; i++)
+  for (int i=0; i < _numPoints; i++)
   {
     outwardVecs.add(new Vec3D(0, 0, 0));
     tanVecs.add(new Vec3D(0, 0, 0));
   }
 
-  for (int i=1; i < numPoints-1; i++)
+  for (int i=1; i < _numPoints-1; i++)
   {
     Vec3D tanVec = tanVecs.get(i);
     Vec3D outVec = outwardVecs.get(i);
@@ -232,8 +219,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
     Vec3D v1 = spiralVec.sub( nextSpiralVec );
 
-    // TODO - FIXME
-    // there's an issue... the vectors are slightly off every 90 degrees.  Hmm.
+    // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees.  Hmm.
     // This causes errors in geometry.
 
     Vec3D po = outwardVecs.get(i-1);
@@ -246,51 +232,52 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
 
   // deal with edge cases - 1st and last
   tanVecs.get(0).set(tanVecs.get(1));
-  tanVecs.get(numPoints-1).set(tanVecs.get(numPoints-2));
+  tanVecs.get(_numPoints-1).set(tanVecs.get(_numPoints-2));
 
   outwardVecs.get(0).set(outwardVecs.get(1));
-  outwardVecs.get(numPoints-1).set(outwardVecs.get(numPoints-2));
+  outwardVecs.get(_numPoints-1).set(outwardVecs.get(_numPoints-2));
 
   //
   // generate the profiles for each segment of the tube, based on RMS volume 
   // 
   profiles.clear();
-  profiles.ensureCapacity(numPoints);
+  profiles.ensureCapacity(_numPoints);
 
   profilesOnCurve.clear();
-  profilesOnCurve.ensureCapacity(numPoints);
+  profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  for (int i=0; i<numPoints; i++)
+  float ripplesPerTurn = 20.0f; // 
+
+  for (int i=0; i<_numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-    // FIXME
-    float currentRMS = (0.5f + adjust);
-    //float currentRMS = (data[i+startIndex] + adjust);
-    float minRMS = (ampMin+adjust);
+   
+    float percentDone = float(i)/_numPoints;
+    float totalRadians = ripplesPerTurn*turns*TWO_PI;
+    float currentAngle = totalRadians * percentDone;  
+    
+    float currentExtrusion = 0.125f*(sin(currentAngle)) + 0.375f + adjust;
+
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
 
-    float yRMS =  currentRMS*spikiness;
-    float yBase = minRMS*spikiness;
-    float y = yRMS;
+    float y =  currentExtrusion*spikiness;
+    float yBase = adjust*spikiness;
 
+    float x = currentExtrusion*thick;
+    float xBase = 0; // minRMS*thick; // TODO: is this right??
 
-    float xRMS = currentRMS*thick;
-    float xBase = minRMS*thick;
-    float x = xRMS;
-
-
-  // VERSION FOR SPIRAL 0002 and 0003
-  /*
+    // VERSION FOR SPIRAL 0002 and 0003
+    /*
     // pointy on bottom
-    spline.add(0, 0);    
-    spline.add(x*0.66, y*0.4); //underhang
-    spline.add(x, y);
-    spline.add(x*0.3, y*0.66); // overhang
-    spline.add(0, 0); // close spline
-    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-*/
+     spline.add(0, 0);    
+     spline.add(x*0.66, y*0.4); //underhang
+     spline.add(x, y);
+     spline.add(x*0.3, y*0.66); // overhang
+     spline.add(0, 0); // close spline
+     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+     */
 
     /*
     //classic inverted
@@ -350,28 +337,28 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
      // END SIN SPIKES
      */
 
-    
-    // SIN SPIKES smoothed 2
-     LineStrip2D strip = new LineStrip2D();
-     
-     // pointy on top v2    
-     double inc = Math.PI/24d;
-     double maxAngle = Math.PI*2d;
-     double offset = Math.PI/2d;
-     
-     for (double angle=0; angle<maxAngle; angle+=inc)
-     {
-     double prog = Math.abs(angle/(maxAngle/2) - 1);
-     prog -= 1d;
-     prog = prog*prog; // smoothing
-     prog = prog*prog; //cubic?
-     
-     double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
-     
-     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-     }
-     // END SIN SPIKES 2
-     
+
+    // VERSION FOR SPIRAL 005 & 006 -- SIN SPIKES smoothed 2
+    LineStrip2D strip = new LineStrip2D();
+
+    // pointy on top v2    
+    double inc = Math.PI/24d;
+    double maxAngle = Math.PI*2d;
+    double offset = Math.PI/2d;
+
+    for (double angle=0; angle<maxAngle; angle+=inc)
+    {
+      double prog = Math.abs(angle/(maxAngle/2) - 1);
+      prog -= 1d;
+      prog = prog*prog; // smoothing
+      prog = prog*prog; //cubic?
+
+      double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
+
+      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+    }
+    // END SIN SPIKES 2
+
 
     /*
      // SIN squared smoothed SPIKES smoothed
@@ -421,7 +408,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   // store the previously calculated points for the bezier surface in between profile rings
   Vec3D[] prevInterpPoints = new Vec3D[TWEEN_POINTS]; 
 
-  for (int i=0; i < numPoints-1; i++)
+  for (int i=0; i < _numPoints-1; i++)
   {
     LineStrip2D profilePointsC = profiles.get(i);
     LineStrip2D profilePointsN = profiles.get(i+1);
@@ -510,12 +497,12 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
       profileOnCurveN.add( ppOnCurve4 );
 
       // 1-3-2
-      //retained.stroke(helixColors.get(numPoints-i-1).toARGB());
+      //retained.stroke(helixColors.get(_numPoints-i-1).toARGB());
       //retained.fill(helixColors.get(i).toARGB());
       mesh.addFace( ppOnCurve1, ppOnCurve3, ppOnCurve2 );
 
       //2-3-4
-      //retained.fill(random(120, 130), 250, 80f+175f*(float)i/numPoints);
+      //retained.fill(random(120, 130), 250, 80f+175f*(float)i/_numPoints);
       mesh.addFace( ppOnCurve2, ppOnCurve3, ppOnCurve4 );
 
       /*
@@ -552,9 +539,9 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
 
 
   // sanity check - profiles on curve should be same length as 2D profiles
-  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != numPoints )
+  if (profilesOnCurve.size() != profiles.size() ||  profilesOnCurve.size() != _numPoints )
   {
-    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + numPoints);
+    println( "ERROR: profiles have different sizes:: [cp] " + profilesOnCurve.size() + ", [pp] " + profiles.size() + ", [np] " + _numPoints);
   }
 
 
@@ -641,7 +628,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     // FIXME
     //float baseEndZ = baseStartZ - distanceBetweenSpirals/4f;
     float baseEndZ = baseStartZ - BaseThickness; //mm
-    
+
     double baseStartRadius = 0.90d*sqrt(firstPointsMinR);
     double baseEndRadius = 1.05d*sqrt(firstPointsMaxR); // add margin...
 
@@ -689,7 +676,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     // add end cap
     //
 
-    LineStrip3D2 endProfilePoints = profilesOnCurve.get(numPoints-1);
+    LineStrip3D2 endProfilePoints = profilesOnCurve.get(_numPoints-1);
 
     // find average (center) point of cap
     Vec3D centerPoint = new Vec3D(0, 0, 0);
@@ -697,7 +684,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
       centerPoint.addSelf(p);
     centerPoint.scaleSelf(1.0/numProfilePoints);
 
-    //retained.fill(helixColors.get(numPoints-1).toARGB());
+    //retained.fill(helixColors.get(_numPoints-1).toARGB());
 
     // profile points go clockwise, so we go backwards
     int j=numProfilePoints;
@@ -716,16 +703,15 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
   println("spiral finished");
   println("mesh faces:" + mesh.getNumFaces());
   println("mesh verts:" + mesh.getNumVertices());
-  
+
   AABB modelBoundsAABB = mesh.getBoundingBox();
   modelBounds = modelBoundsAABB.getExtent().scaleSelf(2*0.0393701);
   println("model bounds in inches:"+ modelBounds);
-  
+
   totalHeight = turns*distanceBetweenSpirals+BaseThickness;
-  
+
   println("Model is " + totalHeight + "mm tall");
   println("= " + (0.0393701*totalHeight));
-  
 }
 // finished createSpiral()
 //
@@ -755,62 +741,45 @@ void draw()
   //stroke(255);
 
 
-  if (drawRMSOverlay)
+
+  PGL pgl = beginPGL();
+  //lights();
+  //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
+  // turn on backfce culling to make sure it looks as it will come out...
+  pushMatrix();
+  scale(5);
+
+  // draw dektop 3D printer shape for reference
+  if (drawPrinterBox) shape(printerBoundingBox);
+
+  //lights();
+  // DRAW PSHAPE STUFF
+
+  //pgl.enable(PGL.CULL_FACE);
+  // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
+  //pgl.frontFace(PGL.CCW);
+  //pgl.cullFace(PGL.BACK);
+
+  //pgl.disable(PGL.CULL_FACE);
+
+  if (!drawProfiles)
   {
-    noLights();
-    hint(DISABLE_DEPTH_TEST);
-    colorMode(RGB);
-
-    if (soundAmpsShape != null)  
-      shape(soundAmpsShape);
-
-    if (soundRMSShape != null)
-      shape(soundRMSShape);
-
-    if (soundRMSShape2 != null)
-      shape(soundRMSShape2);
-
-    hint(ENABLE_DEPTH_TEST);
-  } else
-  {
-    PGL pgl = beginPGL();
-    //lights();
-    //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
-    // turn on backfce culling to make sure it looks as it will come out...
-    pushMatrix();
-    scale(5);
-
-    // draw dektop 3D printer shape for reference
-    if (drawPrinterBox) shape(printerBoundingBox);
-
-    //lights();
-    // DRAW PSHAPE STUFF
-
-    //pgl.enable(PGL.CULL_FACE);
-    // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
-    //pgl.frontFace(PGL.CCW);
-    //pgl.cullFace(PGL.BACK);
-
-    //pgl.disable(PGL.CULL_FACE);
-
-    if (!drawProfiles)
+    if (spiralShape != null)
     {
-      if (spiralShape != null)
-      {
-        lights();
-        ambientLight(10, 10, 10);
-        directionalLight(100, 100, 140, -0.6, 0, -1);
+      lights();
+      ambientLight(10, 10, 10);
+      directionalLight(100, 100, 140, -0.6, 0, -1);
 
-        directionalLight(104, 104, 124, 0.6, 0, 1);
+      directionalLight(104, 104, 124, 0.6, 0, 1);
 
-        shape(spiralShape);
-        noLights();
-      }
+      shape(spiralShape);
+      noLights();
     }
-    popMatrix();
-    endPGL(); // restores the GL defaults for Processing
-    //noLights();
   }
+  popMatrix();
+  endPGL(); // restores the GL defaults for Processing
+  //noLights();
+
 
   if (true)
   {  
@@ -822,175 +791,140 @@ void draw()
 
 
     hint(DISABLE_DEPTH_TEST);
-
     if (drawProfiles)
       if (profileShape != null)
         shape(profileShape);
 
     if (drawVecs)
       drawOutVecs();
-
-    if (soundAmplitudes != null)
-    {
-      cam.beginHUD();
-
-      textSize(fontsize);
-      textAlign(LEFT, BOTTOM);
-
-      fill(255);
-      text("file: " + wavFileName, startX, startY );
-      startY += fontsize;
-      text("file length: " + soundAmplitudes.length/(float)wavSampleRate + "sec", startX, startY );
-      startY += fontsize;
-      text("turns: " + turns, startX, startY );
-      startY += fontsize;
-      text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
-      startY += fontsize;
-      text("thickness: " + spiralThickness, startX, startY );
-      startY += fontsize;
-      text("radius: " + spiralRadius, startX, startY );
-      startY += fontsize;
-      text("layer thickness adjust: " + adjust, startX, startY );
-      startY += fontsize;
-      text("spikiness: " + spikiness, startX, startY );
-      startY += fontsize;
-      text("adjust: " + adjust, startX, startY );
-      startY += fontsize;
-      text("wavSampleRate: " + wavSampleRate, startX, startY );
-      startY += fontsize;
-      text("RMSSize: " + RMSSize + "samps / " + 1000.0*(RMSSize/(float)wavSampleRate) + "ms", startX, startY );
-      startY += fontsize;
-      text("elapsed: " + millis()/1000.0 + "s", startX, startY );
-
-      cam.endHUD();
-    }
     hint(ENABLE_DEPTH_TEST);
+
+    cam.beginHUD();
+    textSize(fontsize);
+    textAlign(LEFT, BOTTOM);
+
+    fill(255);
+    text("spiral points: " + spiralNumPoints, startX, startY );
+    startY += fontsize;
+    text("turns: " + turns, startX, startY );
+    startY += fontsize;
+    text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
+    startY += fontsize;
+    text("thickness: " + spiralThickness, startX, startY );
+    startY += fontsize;
+    text("radius: " + spiralRadius, startX, startY );
+    startY += fontsize;
+    text("layer thickness adjust: " + adjust, startX, startY );
+    startY += fontsize;
+    text("spikiness: " + spikiness, startX, startY );
+    startY += fontsize;
+    text("adjust: " + adjust, startX, startY );
+    startY += fontsize;
+    text("elapsed: " + millis()/1000.0 + "s", startX, startY );
+
+    cam.endHUD();
   }
 } // end draw
 
 
 void keyReleased()
 {
-  if (key == '+')
-  {
-    noLoop();
-    if (RMSSize < 10) ++RMSSize;
-    else
-      RMSSize *=1.1;
-    //println("RMSSize:" + RMSSize);
-    computeRMS();
-    loop();
-  } else if (key == '-')
-  {
-    noLoop();
-    if (RMSSize < 10)
-    {
-      if (RMSSize > 1) --RMSSize;
-    } else
-      RMSSize /= 1.1;
-
-    computeRMS();
-    //println("RMSSize:" + RMSSize);
-    loop();
-  } else if (key == 'o')
-  {
-    drawRMSOverlay = !drawRMSOverlay;
-  } else if (key == 'D')
+  if (key == 'D')
   {
     noLoop();
     distanceBetweenSpirals *= 1.10;
-    computeRMS();
+    generateSpiralShapes();
     println("distanceBetweenSpirals:" + distanceBetweenSpirals);
     loop();
   } else if (key == 'd')
   {
     noLoop();
     distanceBetweenSpirals /= 1.10;
-    computeRMS();
+    generateSpiralShapes();
     println("distanceBetweenSpirals:" + distanceBetweenSpirals);
     loop();
   } else if (key == 'P')
   {
     noLoop();
     spikiness *= 1.10;
-    computeRMS();
+    generateSpiralShapes();
     println("spikiness:" + spikiness);
     loop();
   } else if (key == 'p')
   {
     noLoop();
     spikiness /= 1.10;
-    computeRMS();
+    generateSpiralShapes();
     println("spikiness:" + spikiness);
     loop();
   } else if (key == 'T')
   {
     noLoop();
     turns+=0.05;
-    computeRMS();
+    generateSpiralShapes();
     println("turns:" + turns);
     loop();
   } else if (key == 't')
   {
     noLoop();
     turns-=0.05;
-    computeRMS();
+    generateSpiralShapes();
     println("turns:" + turns);
     loop();
   } else if (key == 'h')
   {
     noLoop();
     spiralThickness/=1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("spiralThickness:" + spiralThickness);
     loop();
   } else if (key == 'H')
   {
     noLoop();
     spiralThickness*=1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("spiralThickness:" + spiralThickness);
     loop();
   } else if (key == 'm')
   {
     noLoop();
     minThickness/=1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("minThickness:" + minThickness);
     loop();
   } else if (key == 'M')
   {
     noLoop();
     minThickness*=1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("minThickness:" + minThickness);
     loop();
   } else if (key == 'a')
   {
     noLoop();
     adjust /= 1.2;
-    computeRMS();
+    generateSpiralShapes();
     println("adjust:" + adjust);
     loop();
   } else if (key == 'A')
   {
     noLoop();
     adjust *= 1.2;
-    computeRMS();
+    generateSpiralShapes();
     println("adjust:" + adjust);
     loop();
   } else if (key == 'r')
   {
     noLoop();
     spiralRadius /= 1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("spiralRadius:" + spiralRadius);
     loop();
   } else if (key == 'R')
   {
     noLoop();
     spiralRadius *= 1.1;
-    computeRMS();
+    generateSpiralShapes();
     println("spiralRadius:" + spiralRadius);
     loop();
   } else if (key == 'z')
@@ -1001,246 +935,45 @@ void keyReleased()
     drawVecs = !drawVecs;
   } else if (key == 'F')
   {
-    // get first part of filename, ignore extension
-    String wavname = split(wavFileName, '.')[0];
-    wavname = wavname.substring(0, min(wavname.length(), 40)); // paths have limits of about 255 chars these days
-
-    String fileName = wavname + " " +
+    String fileName = "spiral" +
       fstr(turns, 2) +"-" +
       fstr(distanceBetweenSpirals, 2) + "-" +
       fstr(spiralThickness, 2) + "-" +
       fstr(spiralRadius, 2) + "-" +
       fstr(adjust, 4) + "-" +
       fstr(spikiness, 2) + "-" +
-      RMSSize + "-" +
-      wavSampleRate +
       ".png" ;
     saveFrame(dataPath(fileName));
-  }
-  else if (key == 's')
+  } else if (key == 's')
   {
     println("SAVING!!!!");
-    // get first part of filename, ignore extension
-    String wavname = split(wavFileName, '.')[0];
-    wavname = wavname.substring(0, min(wavname.length(), 40)); // paths have limits of about 255 chars these days
 
-    int segmentSize = rmsAmplitudes.length;
-    int segmentChunks = 1;
-    if (numShapeSegments > 1) 
-    {
-      segmentSize = int(rmsAmplitudes.length/(turns*numShapeSegments));
-      segmentChunks = (int)turns;
-    }
-    
-    println("seg turns: " + 1f/numShapeSegments);
+    String fileName = "spiral" +
+      fstr(turns, 2) +"-" +
+      fstr(distanceBetweenSpirals, 2) + "-" +
+      fstr(spiralThickness, 2) + "-" +
+      fstr(spiralRadius, 2) + "-" +
+      fstr(adjust, 4) + "-" +
+      fstr(spikiness, 2) + "-" +
+      ".stl" ;
+    mesh.saveAsSTL(dataPath(fileName) );
 
-    for (int i=0; i < segmentChunks; i++)
-    {
-      println("segments:" + segmentSize*i + " " + segmentSize*(i+1));
-      boolean base = (i==0);
-      //createSpiral(rmsAmplitudes, segmentSize*i, segmentSize*(i+1), 1f/numShapeSegments, mesh, !base, true, base);
+    println("saved: " + fileName);
 
-      String fileName = wavname + ".lin-" + nf(i, 3) + "." +
-        fstr(turns, 2) +"-" +
-        fstr(distanceBetweenSpirals, 2) + "-" +
-        fstr(spiralThickness, 2) + "-" +
-        fstr(spiralRadius, 2) + "-" +
-        fstr(adjust, 4) + "-" +
-        fstr(spikiness, 2) + "-" +
-        RMSSize + "-" +
-        wavSampleRate +
-        ".stl" ;
-      mesh.saveAsSTL(dataPath(fileName) );
-
-      println("saved: " + fileName);
-      
-      // reset to full spiral
-      createSpiral(rmsAmplitudes, 0, -1, turns, mesh, true, false, true);
-    }
-  } else if (key==' ')
-  { 
-    if (!fileChosen) 
-    {
-      fileChosen = true;
-      //background(0, 200, 0);
-      selectInput("Select a file to process:", "fileSelected");
-    }
+    // reset to full spiral
+    createSpiral(spiralNumPoints, 0, -1, turns, mesh, true, false, true);
   }
 }
 
 
 
-void fileSelected(File selection) 
+void generateSpiralShapes()
 {
-  if (selection == null) 
-  {
-    println("Window was closed or the user hit cancel.");
-  } else 
-  {
-    println("file selected " + selection.getAbsolutePath());
-    wavFileName = selection.getName();
-
-    InputStream inputStream = null;
-    WaveHeader waveHeader = null;
-
-    try {
-      inputStream = new FileInputStream(selection.getAbsolutePath());
-      waveHeader = new WaveHeader(inputStream);
-    } 
-    catch (FileNotFoundException e) {
-      e.printStackTrace();
-    } 
-
-
-    if (waveHeader != null && waveHeader.isValid()) 
-    {
-      try
-      {
-        wavSampleRate = waveHeader.getSampleRate();   
-        println("sample rate:" + wavSampleRate);
-        // load data
-
-        byte[] data = new byte[inputStream.available()];
-        inputStream.read(data);
-        Wave wavFile = new Wave(waveHeader, data);
-        //short[] amplitudes = wavFile.getSampleAmplitudes();
-        NormalizedSampleAmplitudes nsa = new NormalizedSampleAmplitudes(wavFile);
-        double[] amps = nsa.getNormalizedAmplitudes();
-        soundAmplitudes = new float[amps.length];
-
-        // initialize to 20 points per turn, to start
-        RMSSize = max(1, int(amps.length / (100.0 * turns))); 
-
-        for (int i=0; i<amps.length; i++)
-          soundAmplitudes[i] = (float) amps[i];
-
-        println("found " + soundAmplitudes.length + " samples");
-      } 
-      catch (Exception e) 
-      {
-        println(e.getMessage());
-        e.printStackTrace();
-      }
-
-      computeRMS();
-      loop();
-      // end load data
-    } else {
-      println("Invalid Wave Header");
-    }
-
-    if (inputStream != null)
-    {
-      try {
-        inputStream.close();
-      }
-      catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-
-    // short version:
-    // Open the wav file specified as the first argument
-    //Wave wavFile = new Wave(selection.getAbsolutePath());
-  }
-  fileChosen = false; // reset for next time
-}
-
-
-void computeRMS()
-{
-  println("RMS Size: " + RMSSize);
-
-  ampMin = MAX_FLOAT;
-  ampMax = MIN_FLOAT;
-
-  rmsAmplitudes = new float[soundAmplitudes.length/RMSSize];
-  rmsAmplitudes2 = new float[soundAmplitudes.length/RMSSize];
-
-  // println("calculating " + dataLength + " samples");
-
-  int currentIndex = 0;
-  int rmsArrayIndex = 0;
-
-  while (rmsArrayIndex < rmsAmplitudes.length)
-  {
-    int samplesLeft = soundAmplitudes.length - currentIndex;
-    if (samplesLeft < RMSSize)
-    {
-      // println("RMS calc done:" + samplesLeft);
-      break; // stop loop!
-    }
-
-    int RMSIndex = 0;
-    float RMSSum = 0, RMSSum2=0;
-    float prevData = 0f;
-
-    while (RMSIndex < RMSSize)
-    {
-      // convert data to float
-      float data = (float)soundAmplitudes[currentIndex];
-      float diffData = data - prevData;
-      // debug
-      /*if (rmsArrayIndex == rmsAmplitudes.length-1)
-       {
-       // println("data[" + currentIndex + "]=" + data);
-       }*/
-      RMSSum2 += diffData*diffData; // add square of data to sum
-      RMSSum += data*data;
-      currentIndex++; 
-      RMSIndex++;
-      prevData = data;
-    }
-
-    // find average value - could also scale logarithmically
-    float RMSAve = RMSSum / float(RMSSize);
-
-    rmsAmplitudes[rmsArrayIndex] = sqrt(RMSAve);
-    ampMin = min(ampMin, rmsAmplitudes[rmsArrayIndex]);
-    ampMax = max(ampMax, rmsAmplitudes[rmsArrayIndex]);
-
-    rmsAmplitudes2[rmsArrayIndex++] = sqrt(RMSSum2/float(RMSSize));
-
-
-
-    //println("stored " + (rmsArrayIndex-1) + ":" + RMSAve);
-  }
-
-  println("ampMin:" + ampMin);
-  println("ampMax:" + ampMax);
-
-  float[] rmsAmplitudesExtended = new float[rmsAmplitudes.length*TWEEN_POINTS];  //leave room for end->start
-
-  for (int i=0; i<rmsAmplitudes.length-1; i++)
-  {
-    for (int ii=0; ii < TWEEN_POINTS; ii++)
-    {
-      // calculate linear mix of two vectors 
-      float progress = (float)ii/(TWEEN_POINTS-1); // make sure it goes to 100%
-      float tweenVal = tween.interpolate(rmsAmplitudes[i], rmsAmplitudes[i+1], progress); // get values btw 0 and 1
-      rmsAmplitudesExtended[i*TWEEN_POINTS+ii] = tweenVal;
-    }
-  }
-  // now start to finish
-  float first = rmsAmplitudes[0];
-  float last = rmsAmplitudes[rmsAmplitudes.length-1];
-
-  for (int ii=0; ii < TWEEN_POINTS; ii++)
-  {
-    // calculate linear mix of two vectors 
-    float progress = (float)ii/(TWEEN_POINTS-1); // make sure it goes to 100%
-    float tweenVal = tween.interpolate(last, first, progress); // get values btw 0 and 1
-    rmsAmplitudesExtended[(rmsAmplitudes.length-1)*TWEEN_POINTS+ii] = tweenVal;
-  }
-
-  rmsAmplitudes = rmsAmplitudesExtended;
-  // use entire sound segment
-  createSpiral(rmsAmplitudes, 0, -1, turns, mesh, false, true, true);
-
-  createRMSVizShapes();
+  noLoop(); //turn off loop until needed
+  createSpiral(spiralNumPoints, 0, -1, turns, mesh, true, false, true);
 
   // set color scheme
-  //helixColors = helixColorTheme.getColors(numPoints);
+  //helixColors = helixColorTheme.getColors(_numPoints);
 
   helixColorGrad.addColorAt(0, helixStartColor);
   helixColorGrad.addColorAt(mesh.getNumFaces(), helixEndColor);
@@ -1253,6 +986,7 @@ void computeRMS()
   profileShape = pathsToShape2(profilesOnCurve);
   profileShape.noFill();
   profileShape.setStroke(color(255, 80));
+  loop();
 }
 
 
