@@ -53,14 +53,21 @@ BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolati
 final int TWEEN_POINTS = 3; // resolution of tween
 
 float BaseThickness = 4; //mm
-
+/*
+      fstr(turns, 2) +"-" +
+      fstr(distanceBetweenSpirals, 2) + "-" +
+      fstr(spiralThickness, 2) + "-" +
+      fstr(spiralRadius, 2) + "-" +
+      fstr(adjust, 4) + "-" +
+      fstr(spikiness, 2) + "-" +
+*/
 // removed dependency on turns -- 2017-Aug-14
-float adjust = 0.01f;
+
 float turns = 3.5;
-float spiralThickness = 19.062582; // in mm
-float distanceBetweenSpirals = 47.225502; // in mm
+float distanceBetweenSpirals = 35.48f; // in mm
+float spiralThickness = 23.07f; // in mm
 float spiralRadius = 14.172489f; // in mm
-//float spikiness = 160*3;
+float adjust = 0.2219f;
 float spikiness = 23.164747f;
 float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
@@ -257,13 +264,17 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     float totalRadians = ripplesPerTurn*turns*TWO_PI;
     float currentAngle = totalRadians * percentDone;  
     
-    float currentExtrusion = 0.125f*(sin(currentAngle)) + 0.375f + adjust;
+    // Normal - //0.5f + adjust; 
+    float currentExtrusion = 0.5f + adjust;
 
+    if (ripplesPerTurn >= 1)
+      currentExtrusion = 0.125f*(sin(currentAngle)) +  currentExtrusion;
+      
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
 
     float y =  currentExtrusion*spikiness;
-    float yBase = adjust*spikiness;
+    float yBase = 1f*spikiness;
 
     float x = currentExtrusion*thick;
     float xBase = 0; // minRMS*thick; // TODO: is this right??
@@ -818,10 +829,7 @@ void draw()
     startY += fontsize;
     text("spikiness: " + spikiness, startX, startY );
     startY += fontsize;
-    text("adjust: " + adjust, startX, startY );
-    startY += fontsize;
-    text("elapsed: " + millis()/1000.0 + "s", startX, startY );
-
+    text("elapsed: " + millis()/1000.0 + "s", startX, startY );  
     cam.endHUD();
   }
 } // end draw
@@ -961,7 +969,7 @@ void keyReleased()
     println("saved: " + fileName);
 
     // reset to full spiral
-    createSpiral(spiralNumPoints, 0, -1, turns, mesh, true, false, true);
+    createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
   }
 }
 
@@ -970,7 +978,7 @@ void keyReleased()
 void generateSpiralShapes()
 {
   noLoop(); //turn off loop until needed
-  createSpiral(spiralNumPoints, 0, -1, turns, mesh, true, false, true);
+  createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
 
   // set color scheme
   //helixColors = helixColorTheme.getColors(_numPoints);
