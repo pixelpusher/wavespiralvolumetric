@@ -57,15 +57,15 @@ final int TWEEN_POINTS = 3; // resolution of tween
 
 float BaseThickness = 4; //mm
 
-float adjustFactor = 10; // for 3D translation into mm
+// removed dependency on turns -- 2017-Aug-14
 float adjust = 0.01f;
 float turns = 3.5;
-float spiralThickness = 12.0/turns; // in mm
-float distanceBetweenSpirals = adjustFactor*20.0/turns; // in mm
-float spiralRadius = adjustFactor*0.8f; // in mm
+float spiralThickness = 19.062582; // in mm
+float distanceBetweenSpirals = 47.225502; // in mm
+float spiralRadius = 14.172489f; // in mm
 //float spikiness = 160*3;
-float spikiness = 6.1f;
-float minThickness = 0.01f; // percentage, 0 - 1
+float spikiness = 23.164747f;
+float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
 int RMSSize =1; // will be overriden in fileSelected() function
@@ -281,7 +281,8 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     float x = xRMS;
 
 
-
+  // VERSION FOR SPIRAL 0002 and 0003
+  /*
     // pointy on bottom
     spline.add(0, 0);    
     spline.add(x*0.66, y*0.4); //underhang
@@ -289,7 +290,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
     spline.add(x*0.3, y*0.66); // overhang
     spline.add(0, 0); // close spline
     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-
+*/
 
     /*
     //classic inverted
@@ -349,7 +350,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
      // END SIN SPIKES
      */
 
-    /*
+    
     // SIN SPIKES smoothed 2
      LineStrip2D strip = new LineStrip2D();
      
@@ -370,7 +371,7 @@ void createSpiral(float[] data, int startIndex, int endIndex, float _turns, Tria
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
      // END SIN SPIKES 2
-     */
+     
 
     /*
      // SIN squared smoothed SPIKES smoothed
@@ -852,6 +853,8 @@ void draw()
       text("layer thickness adjust: " + adjust, startX, startY );
       startY += fontsize;
       text("spikiness: " + spikiness, startX, startY );
+      startY += fontsize;
+      text("adjust: " + adjust, startX, startY );
       startY += fontsize;
       text("wavSampleRate: " + wavSampleRate, startX, startY );
       startY += fontsize;
