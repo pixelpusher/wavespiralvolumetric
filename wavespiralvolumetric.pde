@@ -52,15 +52,15 @@ int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitr
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
-float BaseThickness = 4; //mm
+float BaseThickness = 0.5; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
 /*
       fstr(turns, 2) +"-" +
-      fstr(distanceBetweenSpirals, 2) + "-" +
-      fstr(spiralThickness, 2) + "-" +
-      fstr(spiralRadius, 2) + "-" +
-      fstr(adjust, 4) + "-" +
-      fstr(spikiness, 2) + "-" +
-*/
+ fstr(distanceBetweenSpirals, 2) + "-" +
+ fstr(spiralThickness, 2) + "-" +
+ fstr(spiralRadius, 2) + "-" +
+ fstr(adjust, 4) + "-" +
+ fstr(spikiness, 2) + "-" +
+ */
 // removed dependency on turns -- 2017-Aug-14
 
 float turns = 3.5;
@@ -108,10 +108,10 @@ float revLogScale(float val, float minVal, float maxVal)
 
 void setup()
 {
-  size(1280, 720, P3D);
+  size(1920, 1080, P3D);
 
   // set up 3D view
-  cam = new PeasyCam(this, 800);
+  cam = new PeasyCam(this, 1000);
   cam.setMinimumDistance(-5);
   cam.setMaximumDistance(2000);
   cam.setResetOnDoubleClick(true);
@@ -254,22 +254,22 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  float ripplesPerTurn = 20.0f; // 
+  float ripplesPerTurn = 0.0f; // 20 for tests
 
   for (int i=0; i<_numPoints; i++)
   {
     Spline2D spline = new Spline2D();
-   
+
     float percentDone = float(i)/_numPoints;
     float totalRadians = ripplesPerTurn*turns*TWO_PI;
     float currentAngle = totalRadians * percentDone;  
-    
+
     // Normal - //0.5f + adjust; 
     float currentExtrusion = 0.5f + adjust;
 
     if (ripplesPerTurn >= 1)
       currentExtrusion = 0.125f*(sin(currentAngle)) +  currentExtrusion;
-      
+
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
 
@@ -280,15 +280,15 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     float xBase = 0; // minRMS*thick; // TODO: is this right??
 
     // VERSION FOR SPIRAL 0002 and 0003
-    /*
+
     // pointy on bottom
-     spline.add(0, 0);    
-     spline.add(x*0.66, y*0.4); //underhang
-     spline.add(x, y);
-     spline.add(x*0.3, y*0.66); // overhang
-     spline.add(0, 0); // close spline
-     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-     */
+    spline.add(0, 0);    
+    spline.add(x*0.66, y*0.4); //underhang
+    spline.add(x, y);
+    spline.add(x*0.3, y*0.66); // overhang
+    spline.add(0, 0); // close spline
+    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+
 
     /*
     //classic inverted
@@ -326,50 +326,30 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
      // END SIN SPIKES
      */
 
+
+
     /*
-     // SIN SPIKES smoothed
+    // VERSION FOR SPIRAL 005 & 006 -- SIN SPIKES smoothed 2
      LineStrip2D strip = new LineStrip2D();
      
      // pointy on top v2    
      double inc = Math.PI/24d;
      double maxAngle = Math.PI*2d;
-     double offset = Math.PI/6d;
+     double offset = Math.PI/2d;
      
      for (double angle=0; angle<maxAngle; angle+=inc)
      {
      double prog = Math.abs(angle/(maxAngle/2) - 1);
+     prog -= 1d;
      prog = prog*prog; // smoothing
-     //prog = prog*prog; //cubic?
+     prog = prog*prog; //cubic?
      
-     double xx = (1d-prog)*xBase + prog*x;  //yeah, float/double conversion blah blah
+     double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
      
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
-     // END SIN SPIKES
+     // END SIN SPIKES 2
      */
-
-
-    // VERSION FOR SPIRAL 005 & 006 -- SIN SPIKES smoothed 2
-    LineStrip2D strip = new LineStrip2D();
-
-    // pointy on top v2    
-    double inc = Math.PI/24d;
-    double maxAngle = Math.PI*2d;
-    double offset = Math.PI/2d;
-
-    for (double angle=0; angle<maxAngle; angle+=inc)
-    {
-      double prog = Math.abs(angle/(maxAngle/2) - 1);
-      prog -= 1d;
-      prog = prog*prog; // smoothing
-      prog = prog*prog; //cubic?
-
-      double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
-
-      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-    }
-    // END SIN SPIKES 2
-
 
     /*
      // SIN squared smoothed SPIKES smoothed
@@ -747,31 +727,19 @@ void drawOutVecs()
 
 void draw()
 {  
-  background(0);
+  if (drawProfiles)
+    background(255);
+  else
+    background (0);
+  
   fill(200, 0, 200, 100);
   //stroke(255);
 
-
-
-  PGL pgl = beginPGL();
-  //lights();
-  //camera(width - 2*mouseX, height - 2*mouseY, 400, 0, 0, 0, 0, 1, 0);
-  // turn on backfce culling to make sure it looks as it will come out...
   pushMatrix();
   scale(5);
 
   // draw dektop 3D printer shape for reference
   if (drawPrinterBox) shape(printerBoundingBox);
-
-  //lights();
-  // DRAW PSHAPE STUFF
-
-  //pgl.enable(PGL.CULL_FACE);
-  // make sure we are culling the right faces - STL files need anti-clockwise winding orders for triangles
-  //pgl.frontFace(PGL.CCW);
-  //pgl.cullFace(PGL.BACK);
-
-  //pgl.disable(PGL.CULL_FACE);
 
   if (!drawProfiles)
   {
@@ -780,17 +748,24 @@ void draw()
       lights();
       ambientLight(10, 10, 10);
       directionalLight(100, 100, 140, -0.6, 0, -1);
-
       directionalLight(104, 104, 124, 0.6, 0, 1);
-
       shape(spiralShape);
       noLights();
     }
+  } 
+  else
+  {
+    noLights();
+    stroke(0);
+    fill(0);
+    translate(0, 0, -100);
+    scale(3);
+    profileShape.setStroke(color(0,200));
+
+    if (profileShape != null)
+      shape(profileShape);
   }
   popMatrix();
-  endPGL(); // restores the GL defaults for Processing
-  //noLights();
-
 
   if (true)
   {  
@@ -799,12 +774,6 @@ void draw()
     int fontsize = 18;
     int startX = fontsize;
     int startY = 2*fontsize;
-
-
-    hint(DISABLE_DEPTH_TEST);
-    if (drawProfiles)
-      if (profileShape != null)
-        shape(profileShape);
 
     if (drawVecs)
       drawOutVecs();

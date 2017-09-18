@@ -220,13 +220,10 @@ PShape pathsToShape( ArrayList<LineStrip3D> paths)
 {
   PShape retained = createShape();
 
-  retained.enableStyle();
-  retained.beginShape(LINES);
-  //retained.fill(120,120,0,80);
+  retained.beginShape(LINES);  
   retained.noFill();
-  retained.stroke(255, 180);
-  retained.strokeWeight(2);
-
+  retained.stroke(0, 200);
+  retained.strokeWeight(3);
 
   for (LineStrip3D path : paths)
   {
@@ -254,13 +251,10 @@ PShape pathsToShape2( ArrayList<LineStrip3D2> paths)
 {
   PShape retained = createShape();
 
-  retained.enableStyle();
-  retained.beginShape(LINES);
-  //retained.fill(120,120,0,80);
+  retained.beginShape(LINES);  
   retained.noFill();
-  retained.stroke(255, 180);
-  retained.strokeWeight(2);
-
+  retained.stroke(0, 200);
+  retained.strokeWeight(3);
 
   for (LineStrip3D2 path : paths)
   {
