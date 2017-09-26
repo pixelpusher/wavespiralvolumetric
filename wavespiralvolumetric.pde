@@ -186,7 +186,8 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   }
 
   // set number of points
-  spiral.setTurns(_turns, false)
+  spiral.setZmodulus(0.5)
+    .setTurns(_turns, false)
     .setRadius(spiralRadius, false)
     .setDistanceBetweenTurns(distanceBetweenSpirals, false)
     .setEdgeThickness(spiralThickness, false)

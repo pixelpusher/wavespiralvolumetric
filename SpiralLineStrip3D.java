@@ -44,6 +44,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   private float turns;
   private float distanceBetweenTurns;
   private float edgeThickness; // thickness of the line
+  private float zmodulus;
   private float length;
 
 
@@ -71,6 +72,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     this.distanceBetweenTurns = 0;
     this.edgeThickness = 0;
     this.dir = new Vec3D(Vec3D.Z_AXIS);
+    this.zmodulus = 0;
     this.recalculate();
   }
 
@@ -160,7 +162,18 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     } else
       return super.getVertices();
   }
-
+  
+  public SpiralLineStrip3D setZmodulus(float zmod)
+  {
+    return this.setZmodulus(zmod,true);
+  }
+  public SpiralLineStrip3D setZmodulus(float zmod, boolean recalculate)
+  {
+    this.zmodulus = zmod;
+    if (recalculate)
+      this.recalculate();
+    return this;
+  }
 
   public float getRadius() { 
     return radius;
@@ -215,12 +228,18 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     // have to choose one or the other.
     
     Vec3D prev = new Vec3D(0f,0f,0f);
+    double sqrtRadius = Math.sqrt(this.radius);
     
     for (int currentPoint=0; currentPoint < this.numPoints; currentPoint++)
     {
       double turnsProgress = ((double)currentPoint)/this.numPoints;
-      double x = Math.cos( radiansPerPoint*currentPoint ) * this.radius;
-      double y = Math.sin( radiansPerPoint*currentPoint ) * this.radius;
+      double sqrtTurnsProg = Math.sqrt(turnsProgress);
+      double zBulge = 1d+Math.sin(zmodulus*turnsProgress*Math.PI*2d);
+      //zBulge *= 2d; // 0-1 normalised
+      double radAdjust = Math.pow(sqrtRadius*zBulge,2);
+      //radAdjust += zBulge*radAdjust;
+      double x = Math.cos( radiansPerPoint*currentPoint ) * radAdjust;
+      double y = Math.sin( radiansPerPoint*currentPoint ) * radAdjust;
       double z = turnsProgress * this.turns * this.distanceBetweenTurns;
       Vec3D vert = new Vec3D((float)x, (float)y, (float)z);
       this.vertices.add(vert);
