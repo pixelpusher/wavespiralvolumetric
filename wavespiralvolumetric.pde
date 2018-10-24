@@ -254,7 +254,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  float ripplesPerTurn = 0.0f; // 20 for tests
+  float ripplesPerTurn = 20.0f; // 20 for tests
 
   for (int i=0; i<_numPoints; i++)
   {
@@ -280,18 +280,18 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     float xBase = 0; // minRMS*thick; // TODO: is this right??
 
     // VERSION FOR SPIRAL 0002 and 0003
-
+    /*
     // pointy on bottom
-    spline.add(0, 0);    
-    spline.add(x*0.66, y*0.4); //underhang
-    spline.add(x, y);
-    spline.add(x*0.3, y*0.66); // overhang
-    spline.add(0, 0); // close spline
-    LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-
+     spline.add(0, 0);    
+     spline.add(x*0.66, y*0.4); //underhang
+     spline.add(x, y);
+     spline.add(x*0.3, y*0.66); // overhang
+     spline.add(0, 0); // close spline
+     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
+     */
 
     /*
-    //classic inverted
+    //classic inverted -- not used
      // pointy on top
      // if just reversed would never print because bottom too intricate
      spline.add(x, x);
@@ -308,7 +308,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     //LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
 
     /*
-// SIN SPIKES
+// SIN SPIKES -- not used
      LineStrip2D strip = new LineStrip2D();
      
      // pointy on top v2
@@ -329,7 +329,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
 
 
     /*
-    // VERSION FOR SPIRAL 005 & 006 -- SIN SPIKES smoothed 2
+    // VERSION FOR SPIRAL 008 -- SIN SPIKES smoothed 2
      LineStrip2D strip = new LineStrip2D();
      
      // pointy on top v2    
@@ -351,28 +351,29 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
      // END SIN SPIKES 2
      */
 
-    /*
-     // SIN squared smoothed SPIKES smoothed
-     LineStrip2D strip = new LineStrip2D();
-     
-     // pointy on top v2    
-     double inc = Math.PI/24d;
-     double maxAngle = Math.PI*2d;
-     double offset = Math.PI/6d;
-     
-     for (double angle=0; angle<maxAngle; angle+=inc)
-     {
-     //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
-     double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
-     //prog = prog*prog; // smoothing
-     //prog = prog*prog; //cubic?
-     
-     double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
-     
-     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-     }
-     // END SIN squared SPIKES
-     */
+    // for spirals 005 & 6
+
+    // SIN squared smoothed SPIKES smoothed
+    LineStrip2D strip = new LineStrip2D();
+
+    // pointy on top v2    
+    double inc = Math.PI/24d;
+    double maxAngle = Math.PI*2d;
+    double offset = Math.PI/6d;
+
+    for (double angle=0; angle<maxAngle; angle+=inc)
+    {
+      //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
+      double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
+      //prog = prog*prog; // smoothing
+      //prog = prog*prog; //cubic?
+
+      double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
+
+      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
+    }
+    // END SIN squared SPIKES
+
 
 
     // DEBUG - removed this
@@ -731,7 +732,7 @@ void draw()
     background(255);
   else
     background (0);
-  
+
   fill(200, 0, 200, 100);
   //stroke(255);
 
@@ -752,15 +753,14 @@ void draw()
       shape(spiralShape);
       noLights();
     }
-  } 
-  else
+  } else
   {
     noLights();
     stroke(0);
     fill(0);
     translate(0, 0, -100);
     scale(3);
-    profileShape.setStroke(color(0,200));
+    profileShape.setStroke(color(0, 200));
 
     if (profileShape != null)
       shape(profileShape);
