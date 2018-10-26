@@ -254,7 +254,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  float ripplesPerTurn = 20.0f; // 20 for tests
+  float ripplesPerTurn = 0.0f; // 20 for tests
 
   for (int i=0; i<_numPoints; i++)
   {
@@ -328,52 +328,68 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
 
 
 
-    /*
+
     // VERSION FOR SPIRAL 008 -- SIN SPIKES smoothed 2
+    LineStrip2D strip = new LineStrip2D();
+
+    // pointy on top v2    
+    double inc = Math.PI/48d;
+    double maxAngle = Math.PI*2d;
+    double offset = Math.PI/4d;
+
+    float x0=0, y0=0;
+
+    double centerOffX = 1.15d;
+    double centerOffY = 1.8d; // try 1.2 or 1.8
+
+    for (double angle=0; angle<=maxAngle; angle+=inc)
+    {
+      double prog = Math.abs(angle/(maxAngle/2) - 1); //-1 to 1 --> 1 to 0 to 1
+      //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
+
+      prog -= 1d; // 0 to -1 to 0
+      prog = prog*prog*Math.abs(prog); // smoothing, petal-like
+      //prog = prog*prog; //cubic?
+
+      double xx = (1d-prog)*x + prog*xBase;
+
+      float newx = (float)(0.5d*xx*(Math.sin(angle+offset)+centerOffX));
+      float newy = (float)(0.5d*xx*(Math.cos(angle+offset)+centerOffY));
+
+      if (angle ==0)
+      {
+        x0 = newx;
+        y0 = newy;
+      }
+
+      strip.add(newx, newy);
+    }
+    strip.add(x0, y0);     // END SIN SPIKES 2
+
+
+    // for spirals 005 & 6
+    /*
+    // SIN squared smoothed SPIKES smoothed
      LineStrip2D strip = new LineStrip2D();
      
      // pointy on top v2    
      double inc = Math.PI/24d;
      double maxAngle = Math.PI*2d;
-     double offset = Math.PI/2d;
+     double offset = Math.PI/6d;
      
      for (double angle=0; angle<maxAngle; angle+=inc)
      {
-     double prog = Math.abs(angle/(maxAngle/2) - 1);
-     prog -= 1d;
-     prog = prog*prog; // smoothing
-     prog = prog*prog; //cubic?
+     //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
+     double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
+     //prog = prog*prog; // smoothing
+     //prog = prog*prog; //cubic?
      
-     double xx = (1d-prog)*x + prog*xBase;  //yeah, float/double conversion blah blah
+     double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
      
      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
      }
-     // END SIN SPIKES 2
+     // END SIN squared SPIKES
      */
-
-    // for spirals 005 & 6
-
-    // SIN squared smoothed SPIKES smoothed
-    LineStrip2D strip = new LineStrip2D();
-
-    // pointy on top v2    
-    double inc = Math.PI/24d;
-    double maxAngle = Math.PI*2d;
-    double offset = Math.PI/6d;
-
-    for (double angle=0; angle<maxAngle; angle+=inc)
-    {
-      //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
-      double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
-      //prog = prog*prog; // smoothing
-      //prog = prog*prog; //cubic?
-
-      double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
-
-      strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-    }
-    // END SIN squared SPIKES
-
 
 
     // DEBUG - removed this
