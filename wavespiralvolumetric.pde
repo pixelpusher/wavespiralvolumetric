@@ -328,7 +328,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
 
 
 
-
+  /*
     // VERSION FOR SPIRAL 008 -- SIN SPIKES smoothed 2
     LineStrip2D strip = new LineStrip2D();
 
@@ -365,6 +365,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
       strip.add(newx, newy);
     }
     strip.add(x0, y0);     // END SIN SPIKES 2
+*/
 
 
     // for spirals 005 & 6
@@ -392,6 +393,44 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
      */
 
 
+    //profileName = "Param cubic ellipse 012";
+    LineStrip2D strip = new LineStrip2D();
+
+    double inc = Math.PI/48d;
+    double maxAngle = Math.PI*2d;
+    double offset = Math.PI/3d;
+
+    float x0=0, z0=0;
+
+    double centerOffX = 1.2;
+    double centerOffZ = 1.2; // try 1.2 or 1.8
+
+    for (double angle=0; angle<=maxAngle; angle+=inc)
+    {
+      //double prog = Math.abs(angle/(maxAngle/2) - 1); //-1 to 1 --> 1 to 0 to 1
+    double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.4d); // little pointy on top
+
+      //prog = 0.75d + 0.25d*Math.cos(8*Math.PI * prog);
+
+      prog -= 1d; // 0 to -1 to 0
+      prog = prog*prog*Math.abs(prog); // smoothing, petal-like
+      //prog = prog*prog; //cubic?
+
+      double xx = (2d-prog)*x + prog*xBase;
+
+      float newx = (float)(0.25d*xx*(Math.sin(angle+offset)+centerOffX));
+      float newz = (float)(0.25d*xx*(Math.cos(angle+offset)+centerOffZ));
+
+      if (angle == 0)
+      {
+        x0 = newx;
+        z0 = newz;
+      }
+
+      strip.add(newx, newz);
+    }
+    strip.add(x0, z0);     // END SIN SPIKES 2
+
     // DEBUG - removed this
     // add profile to internal tube list of profiles 
     //profiles.add(strip.add(strip.get(0)));
@@ -402,6 +441,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
 
     profiles.add(strip);
   }
+
 
   println("DEBUG:: added " + profiles.size() + " profiles");
 
