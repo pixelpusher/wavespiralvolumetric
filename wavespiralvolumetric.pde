@@ -10,7 +10,7 @@
 // - fix overlay colors (TColor bug? Or PShape stroke bug?)
 // - how about a REPL for commands instead of stupid key presses
 // - need flat base for stand and for printing properly...
-// - how about filling it to the max spikiness in between shapes, so it is recessed rather 
+// - how about filling it to the max zScale in between shapes, so it is recessed rather 
 // than filled?
 // - or inner removal of material rather than exterior extrusion
 
@@ -40,6 +40,8 @@ PShape profileShape = null;
 PShape printerBoundingBox = null;
 PShape soundAmpsShape = null, soundRMSShape = null, soundRMSShape2 = null;
 
+byte profileNumber = 1; // which swept helical profile to use
+
 TriangleMesh mesh = null;
 
 boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
@@ -47,7 +49,8 @@ private Vec3D modelBounds; // size of actual generated model
 
 int diameterQuality = 10; // for spline profile
 int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
-int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
+int spiralNumPoints = 4*(154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
+// NOTE: arbitrarily changed this to 4 to get better resultion
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
@@ -56,19 +59,20 @@ float BaseThickness = 0.5; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5
 /*
       fstr(turns, 2) +"-" +
  fstr(distanceBetweenSpirals, 2) + "-" +
- fstr(spiralThickness, 2) + "-" +
+ fstr(xScale, 2) + "-" +
  fstr(spiralRadius, 2) + "-" +
  fstr(adjust, 4) + "-" +
- fstr(spikiness, 2) + "-" +
+ fstr(zScale, 2) + "-" +
  */
 // removed dependency on turns -- 2017-Aug-14
 
 float turns = 3.5;
 float distanceBetweenSpirals = 35.48f; // in mm
-float spiralThickness = 23.07f; // in mm
+float xScale = 23.07f; // in mm
 float spiralRadius = 14.172489f; // in mm
-float adjust = 0.2219f;
-float spikiness = 23.164747f;
+//float adjust = 0.2219f;
+float adjust = 1f;
+float zScale = 23.164747f;
 float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
@@ -149,7 +153,7 @@ void setup()
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
     .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-    .setEdgeThickness(spiralThickness, false);
+    .setEdgeThickness(xScale, false);
 
   profiles = new ArrayList<LineStrip2D>();
   outwardVecs = new ArrayList<Vec3D>();
@@ -189,7 +193,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   spiral.setTurns(_turns, false)
     .setRadius(spiralRadius, false)
     .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-    .setEdgeThickness(spiralThickness, false)
+    .setEdgeThickness(xScale, false)
     .setNumPoints(dataLength);
 
   println("total spiral points:" + spiral.getNumPoints() + " / " + dataLength);
@@ -254,12 +258,10 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  float ripplesPerTurn = 0.0f; // 20 for tests
+  float ripplesPerTurn = 20.0f; // 20 for tests
 
   for (int i=0; i<_numPoints; i++)
   {
-    Spline2D spline = new Spline2D();
-
     float percentDone = float(i)/_numPoints;
     float totalRadians = ripplesPerTurn*turns*TWO_PI;
     float currentAngle = totalRadians * percentDone;  
@@ -273,163 +275,49 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     float thick = spiral.getEdgeThickness();
     float spiralRadius = spiral.getRadius();
 
-    float y =  currentExtrusion*spikiness;
-    float yBase = 1f*spikiness;
+    float y =  currentExtrusion*zScale;
+    float yBase = 1f*zScale;
 
     float x = currentExtrusion*thick;
-    float xBase = 0; // minRMS*thick; // TODO: is this right??
+    float xBase = 0; // minRMS*thick; 
 
-    // VERSION FOR SPIRAL 0002 and 0003
-    /*
-    // pointy on bottom
-     spline.add(0, 0);    
-     spline.add(x*0.66, y*0.4); //underhang
-     spline.add(x, y);
-     spline.add(x*0.3, y*0.66); // overhang
-     spline.add(0, 0); // close spline
-     LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-     */
-
-    /*
-    //classic inverted -- not used
-     // pointy on top
-     // if just reversed would never print because bottom too intricate
-     spline.add(x, x);
-     //spline.add(xBase,yBase);
-     spline.add(x*0.8, x*0.2);
-     //spline.add(xBase*0.66,yBase*0.3); // overhang
-     spline.add(0, 0); // close spline    
-     //spline.add(xBase*0.4,yBase*0.66); //underhang
-     spline.add(x*0.2, x*0.8);
-     //spline.add(xBase,yBase);
-     spline.add(x, x);
-     */
-
-    //LineStrip2D strip = spline.toLineStrip2D(diameterQuality);
-
-    /*
-// SIN SPIKES -- not used
-     LineStrip2D strip = new LineStrip2D();
-     
-     // pointy on top v2
-     
-     double inc = Math.PI/24;
-     double maxAngle = Math.PI*2d;
-     
-     for (double angle=0; angle<maxAngle; angle+=inc)
-     {
-     double prog = Math.abs(angle/(maxAngle/2) - 1);
-     double xx = prog*x;
-     
-     strip.add((float)(0.5d*xx*(Math.cos(angle+inc*6d)+1d)), (float)(0.5d*xx*(Math.sin(angle+inc*6d)+1d)));
-     }
-     // END SIN SPIKES
-     */
-
-
-
-  /*
-    // VERSION FOR SPIRAL 008 -- SIN SPIKES smoothed 2
     LineStrip2D strip = new LineStrip2D();
 
-    // pointy on top v2    
-    double inc = Math.PI/48d;
-    double maxAngle = Math.PI*2d;
-    double offset = Math.PI/4d;
-
-    float x0=0, y0=0;
-
-    double centerOffX = 1.15d;
-    double centerOffY = 1.8d; // try 1.2 or 1.8
-
-    for (double angle=0; angle<=maxAngle; angle+=inc)
+    switch(profileNumber)
     {
-      double prog = Math.abs(angle/(maxAngle/2) - 1); //-1 to 1 --> 1 to 0 to 1
-      //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
+    case 1:   
+      strip = makeProfile1();
+      break;
 
-      prog -= 1d; // 0 to -1 to 0
-      prog = prog*prog*Math.abs(prog); // smoothing, petal-like
-      //prog = prog*prog; //cubic?
+    case 2:   
+      strip = makeProfile2();
+      break;
 
-      double xx = (1d-prog)*x + prog*xBase;
+    case 3:   
+      strip = makeProfile3();
+      break;
 
-      float newx = (float)(0.5d*xx*(Math.sin(angle+offset)+centerOffX));
-      float newy = (float)(0.5d*xx*(Math.cos(angle+offset)+centerOffY));
+    case 4:   
+      strip = makeProfile4();
+      break;
 
-      if (angle ==0)
-      {
-        x0 = newx;
-        y0 = newy;
-      }
+    case 5:   
+      strip = makeProfile5();
+      break;
 
-      strip.add(newx, newy);
+    case 6:   
+      strip = makeProfile6();
+      break;
+
+    case 7:   
+      strip = makeProfile7(currentExtrusion);
+      break;
+
+    default:
+      break;
     }
-    strip.add(x0, y0);     // END SIN SPIKES 2
-*/
 
-
-    // for spirals 005 & 6
-    /*
-    // SIN squared smoothed SPIKES smoothed
-     LineStrip2D strip = new LineStrip2D();
-     
-     // pointy on top v2    
-     double inc = Math.PI/24d;
-     double maxAngle = Math.PI*2d;
-     double offset = Math.PI/6d;
-     
-     for (double angle=0; angle<maxAngle; angle+=inc)
-     {
-     //double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.5d); // full sin
-     double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.2d); // little pointy on top
-     //prog = prog*prog; // smoothing
-     //prog = prog*prog; //cubic?
-     
-     double xx = (1d-prog)*xBase + 2*prog*x;  //yeah, float/double conversion blah blah
-     
-     strip.add((float)(0.5d*xx*(Math.cos(angle+offset)+1d)), (float)(0.5d*xx*(Math.sin(angle+offset)+1d)));
-     }
-     // END SIN squared SPIKES
-     */
-
-
-    //profileName = "Param cubic ellipse 012";
-    LineStrip2D strip = new LineStrip2D();
-
-    double inc = Math.PI/48d;
-    double maxAngle = Math.PI*2d;
-    double offset = Math.PI/3d;
-
-    float x0=0, z0=0;
-
-    double centerOffX = 1.2;
-    double centerOffZ = 1.2; // try 1.2 or 1.8
-
-    for (double angle=0; angle<=maxAngle; angle+=inc)
-    {
-      //double prog = Math.abs(angle/(maxAngle/2) - 1); //-1 to 1 --> 1 to 0 to 1
-    double prog = Math.sin(Math.abs(angle/(maxAngle/2) - 1)*Math.PI*0.4d); // little pointy on top
-
-      //prog = 0.75d + 0.25d*Math.cos(8*Math.PI * prog);
-
-      prog -= 1d; // 0 to -1 to 0
-      prog = prog*prog*Math.abs(prog); // smoothing, petal-like
-      //prog = prog*prog; //cubic?
-
-      double xx = (2d-prog)*x + prog*xBase;
-
-      float newx = (float)(0.25d*xx*(Math.sin(angle+offset)+centerOffX));
-      float newz = (float)(0.25d*xx*(Math.cos(angle+offset)+centerOffZ));
-
-      if (angle == 0)
-      {
-        x0 = newx;
-        z0 = newz;
-      }
-
-      strip.add(newx, newz);
-    }
-    strip.add(x0, z0);     // END SIN SPIKES 2
+    profiles.add(strip);
 
     // DEBUG - removed this
     // add profile to internal tube list of profiles 
@@ -438,8 +326,6 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     // test 1st and last points are the same
     //float profDist = strip.get(0).distanceTo(strip.get(strip.getVertices().size()-1));
     //println("p0-p8 dist=" + profDist);
-
-    profiles.add(strip);
   }
 
 
@@ -846,13 +732,13 @@ void draw()
     startY += fontsize;
     text("distanceBetweenSpirals: " + distanceBetweenSpirals, startX, startY );
     startY += fontsize;
-    text("thickness: " + spiralThickness, startX, startY );
+    text("thickness: " + xScale, startX, startY );
     startY += fontsize;
     text("radius: " + spiralRadius, startX, startY );
     startY += fontsize;
     text("layer thickness adjust: " + adjust, startX, startY );
     startY += fontsize;
-    text("spikiness: " + spikiness, startX, startY );
+    text("zScale: " + zScale, startX, startY );
     startY += fontsize;
     text("elapsed: " + millis()/1000.0 + "s", startX, startY );  
     cam.endHUD();
@@ -862,140 +748,149 @@ void draw()
 
 void keyReleased()
 {
-  if (key == 'D')
+  // number keys 1-6
+  if (key > 48 && key < 58)
   {
     noLoop();
-    distanceBetweenSpirals *= 1.10;
+    profileNumber = (byte)(key-48);
+    println("profile: " + profileNumber);
     generateSpiralShapes();
-    println("distanceBetweenSpirals:" + distanceBetweenSpirals);
     loop();
-  } else if (key == 'd')
-  {
-    noLoop();
-    distanceBetweenSpirals /= 1.10;
-    generateSpiralShapes();
-    println("distanceBetweenSpirals:" + distanceBetweenSpirals);
-    loop();
-  } else if (key == 'P')
-  {
-    noLoop();
-    spikiness *= 1.10;
-    generateSpiralShapes();
-    println("spikiness:" + spikiness);
-    loop();
-  } else if (key == 'p')
-  {
-    noLoop();
-    spikiness /= 1.10;
-    generateSpiralShapes();
-    println("spikiness:" + spikiness);
-    loop();
-  } else if (key == 'T')
-  {
-    noLoop();
-    turns+=0.05;
-    generateSpiralShapes();
-    println("turns:" + turns);
-    loop();
-  } else if (key == 't')
-  {
-    noLoop();
-    turns-=0.05;
-    generateSpiralShapes();
-    println("turns:" + turns);
-    loop();
-  } else if (key == 'h')
-  {
-    noLoop();
-    spiralThickness/=1.1;
-    generateSpiralShapes();
-    println("spiralThickness:" + spiralThickness);
-    loop();
-  } else if (key == 'H')
-  {
-    noLoop();
-    spiralThickness*=1.1;
-    generateSpiralShapes();
-    println("spiralThickness:" + spiralThickness);
-    loop();
-  } else if (key == 'm')
-  {
-    noLoop();
-    minThickness/=1.1;
-    generateSpiralShapes();
-    println("minThickness:" + minThickness);
-    loop();
-  } else if (key == 'M')
-  {
-    noLoop();
-    minThickness*=1.1;
-    generateSpiralShapes();
-    println("minThickness:" + minThickness);
-    loop();
-  } else if (key == 'a')
-  {
-    noLoop();
-    adjust /= 1.2;
-    generateSpiralShapes();
-    println("adjust:" + adjust);
-    loop();
-  } else if (key == 'A')
-  {
-    noLoop();
-    adjust *= 1.2;
-    generateSpiralShapes();
-    println("adjust:" + adjust);
-    loop();
-  } else if (key == 'r')
-  {
-    noLoop();
-    spiralRadius /= 1.1;
-    generateSpiralShapes();
-    println("spiralRadius:" + spiralRadius);
-    loop();
-  } else if (key == 'R')
-  {
-    noLoop();
-    spiralRadius *= 1.1;
-    generateSpiralShapes();
-    println("spiralRadius:" + spiralRadius);
-    loop();
-  } else if (key == 'z')
-  {
-    drawProfiles = !drawProfiles;
-  } else if (key =='v')
-  {
-    drawVecs = !drawVecs;
-  } else if (key == 'F')
-  {
-    String fileName = "spiral" +
-      fstr(turns, 2) +"-" +
-      fstr(distanceBetweenSpirals, 2) + "-" +
-      fstr(spiralThickness, 2) + "-" +
-      fstr(spiralRadius, 2) + "-" +
-      fstr(adjust, 4) + "-" +
-      fstr(spikiness, 2) + "-" +
-      ".png" ;
-    saveFrame(dataPath(fileName));
-  } else if (key == 's')
-  {
-    println("SAVING!!!!");
+  } else
+    if (key == 'D')
+    {
+      noLoop();
+      distanceBetweenSpirals *= 1.10;
+      generateSpiralShapes();
+      println("distanceBetweenSpirals:" + distanceBetweenSpirals);
+      loop();
+    } else if (key == 'd')
+    {
+      noLoop();
+      distanceBetweenSpirals /= 1.10;
+      generateSpiralShapes();
+      println("distanceBetweenSpirals:" + distanceBetweenSpirals);
+      loop();
+    } else if (key == 'P')
+    {
+      noLoop();
+      zScale *= 1.10;
+      generateSpiralShapes();
+      println("zScale:" + zScale);
+      loop();
+    } else if (key == 'p')
+    {
+      noLoop();
+      zScale /= 1.10;
+      generateSpiralShapes();
+      println("zScale:" + zScale);
+      loop();
+    } else if (key == 'T')
+    {
+      noLoop();
+      turns+=0.05;
+      generateSpiralShapes();
+      println("turns:" + turns);
+      loop();
+    } else if (key == 't')
+    {
+      noLoop();
+      turns-=0.05;
+      generateSpiralShapes();
+      println("turns:" + turns);
+      loop();
+    } else if (key == 'h')
+    {
+      noLoop();
+      xScale/=1.1;
+      generateSpiralShapes();
+      println("xScale:" + xScale);
+      loop();
+    } else if (key == 'H')
+    {
+      noLoop();
+      xScale*=1.1;
+      generateSpiralShapes();
+      println("xScale:" + xScale);
+      loop();
+    } else if (key == 'm')
+    {
+      noLoop();
+      minThickness/=1.1;
+      generateSpiralShapes();
+      println("minThickness:" + minThickness);
+      loop();
+    } else if (key == 'M')
+    {
+      noLoop();
+      minThickness*=1.1;
+      generateSpiralShapes();
+      println("minThickness:" + minThickness);
+      loop();
+    } else if (key == 'a')
+    {
+      noLoop();
+      adjust /= 1.2;
+      generateSpiralShapes();
+      println("adjust:" + adjust);
+      loop();
+    } else if (key == 'A')
+    {
+      noLoop();
+      adjust *= 1.2;
+      generateSpiralShapes();
+      println("adjust:" + adjust);
+      loop();
+    } else if (key == 'r')
+    {
+      noLoop();
+      spiralRadius /= 1.1;
+      generateSpiralShapes();
+      println("spiralRadius:" + spiralRadius);
+      loop();
+    } else if (key == 'R')
+    {
+      noLoop();
+      spiralRadius *= 1.1;
+      generateSpiralShapes();
+      println("spiralRadius:" + spiralRadius);
+      loop();
+    } else if (key == 'z')
+    {
+      drawProfiles = !drawProfiles;
+    } else if (key =='v')
+    {
+      drawVecs = !drawVecs;
+    } else if (key == 'F')
+    {
+      String fileName = "spiral" +
+        fstr(turns, 2) +"-" +
+        fstr(distanceBetweenSpirals, 2) + "-" +
+        fstr(xScale, 2) + "-" +
+        fstr(spiralRadius, 2) + "-" +
+        fstr(adjust, 4) + "-" +
+        fstr(zScale, 2) + "-" +
+        ".png" ;
+      saveFrame(dataPath(fileName));
+    } else if (key == 's')
+    {
+      println("SAVING!!!!");
 
-    String fileName = "spiral" +
-      fstr(turns, 2) +"-" +
-      fstr(distanceBetweenSpirals, 2) + "-" +
-      fstr(spiralThickness, 2) + "-" +
-      fstr(spiralRadius, 2) + "-" +
-      fstr(adjust, 4) + "-" +
-      fstr(spikiness, 2) + "-" +
-      ".stl" ;
-    mesh.saveAsSTL(dataPath(fileName) );
+      String fileName = "spiral" +
+        fstr(turns, 2) +"-" +
+        fstr(distanceBetweenSpirals, 2) + "-" +
+        fstr(xScale, 2) + "-" +
+        fstr(spiralRadius, 2) + "-" +
+        fstr(adjust, 4) + "-" +
+        fstr(zScale, 2) + "-" +
+        ".stl" ;
+      mesh.saveAsSTL(dataPath(fileName) );
 
-    println("saved: " + fileName);
+      println("saved: " + fileName);
 
-    // reset to full spiral
-    createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
-  }
+      // reset to full spiral
+      createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
+    }
 }
 
 
