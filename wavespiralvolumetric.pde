@@ -55,7 +55,7 @@ int spiralNumPoints = 4*(154368/441); // points in the spiral total.  Seems arbi
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
-float BaseThickness = 0.5; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
+float BaseThickness = 1; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
 /*
       fstr(turns, 2) +"-" +
  fstr(distanceBetweenSpirals, 2) + "-" +
@@ -258,7 +258,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-  float ripplesPerTurn = 20.0f; // 20 for tests
+  float ripplesPerTurn = 0.0f; // 20 for tests
 
   for (int i=0; i<_numPoints; i++)
   {
