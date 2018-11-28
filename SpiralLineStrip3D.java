@@ -29,7 +29,7 @@ import java.util.List;
 import toxi.geom.ReadonlyVec3D;
 import toxi.geom.Vec3D;
 import toxi.math.MathUtils;
-import processing.core.PApplet;
+//import processing.core.PApplet;
 
 
 
@@ -39,12 +39,12 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   public Vec3D pos;
 
 
-  private float radius;
+  private double radius;
   private int   numPoints;
-  private float turns;
-  private float distanceBetweenTurns;
-  private float edgeThickness; // thickness of the line
-  private float length;
+  private double turns;
+  private double distanceBetweenTurns;
+  private double edgeThickness; // thickness of the line
+  private double length;
 
 
   /**
@@ -75,25 +75,25 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   }
 
   /*
-     * Boring get/set stuff
+   * Boring get/set stuff
    */
-  public SpiralLineStrip3D setRadius(float radius, boolean recalculate)
+  public SpiralLineStrip3D setRadius(double radius, boolean recalculate)
   {
     this.radius = radius;
     if (recalculate)
       this.recalculate();
     return this;
   }
-  public SpiralLineStrip3D setRadius(float radius)
+  public SpiralLineStrip3D setRadius(double radius)
   {     
     return this.setRadius(radius, true);
   }
 
-  public SpiralLineStrip3D setTurns(float turns)
+  public SpiralLineStrip3D setTurns(double turns)
   {     
     return this.setTurns(turns, true);
   }
-  public SpiralLineStrip3D setTurns(float turns, boolean recalculate)
+  public SpiralLineStrip3D setTurns(double turns, boolean recalculate)
   {
     this.turns = turns;
     if (recalculate)
@@ -101,11 +101,11 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     return this;
   }
 
-  public SpiralLineStrip3D setDistanceBetweenTurns(float distanceBetweenTurns)
+  public SpiralLineStrip3D setDistanceBetweenTurns(double distanceBetweenTurns)
   {     
     return this.setDistanceBetweenTurns(distanceBetweenTurns, true);
   }
-  public SpiralLineStrip3D setDistanceBetweenTurns(float distanceBetweenTurns, boolean recalculate)
+  public SpiralLineStrip3D setDistanceBetweenTurns(double distanceBetweenTurns, boolean recalculate)
   {
     this.distanceBetweenTurns = distanceBetweenTurns;
     if (recalculate)
@@ -114,11 +114,11 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   }
 
 
-  public SpiralLineStrip3D setEdgeThickness(float edgeThickness)
+  public SpiralLineStrip3D setEdgeThickness(double edgeThickness)
   {     
     return this.setEdgeThickness(edgeThickness, true);
   }
-  public SpiralLineStrip3D setEdgeThickness(float edgeThickness, boolean recalculate)
+  public SpiralLineStrip3D setEdgeThickness(double edgeThickness, boolean recalculate)
   {
     this.edgeThickness = edgeThickness;
     if (recalculate)
@@ -162,22 +162,22 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   }
 
 
-  public float getRadius() { 
+  public double getRadius() { 
     return radius;
   }
   public int   getNumPoints() { 
     return numPoints;
   }
-  public float getTurns() { 
+  public double getTurns() { 
     return turns;
   }
-  public float getDistanceBetweenTurns() { 
+  public double getDistanceBetweenTurns() { 
     return distanceBetweenTurns;
   }
-  public float getEdgeThickness() { 
+  public double getEdgeThickness() { 
     return edgeThickness;
   }
-  public float getLength() { 
+  public double getLength() { 
     return length;
   }
 
@@ -188,7 +188,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
   public SpiralLineStrip3D recalculate()
   {
 
-    turns = PApplet.max(0.0001f,turns);
+    turns = Math.max(0.0001,turns);
     
 
     double totalRadians = Math.PI * 2d * this.turns;
@@ -201,7 +201,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     {
       this.numPoints = 2;
       for (int i=0; i< this.numPoints; i++)
-        this.vertices.add(new Vec3D(this.radius, 0, 0));
+        this.vertices.add(new Vec3D((float)this.radius, 0, 0));
 
       return this;
     }
@@ -218,7 +218,7 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
     
     for (int currentPoint=0; currentPoint < this.numPoints; currentPoint++)
     {
-      double turnsProgress = ((double)currentPoint)/this.numPoints;
+      double turnsProgress = ((float)currentPoint)/this.numPoints;
       double x = Math.cos( radiansPerPoint*currentPoint ) * this.radius;
       double y = Math.sin( radiansPerPoint*currentPoint ) * this.radius;
       double z = turnsProgress * this.turns * this.distanceBetweenTurns;
@@ -245,11 +245,11 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
    return toMesh(steps, 0);
    }
    
-   public Mesh3D toMesh(int steps, float thetaOffset) {
+   public Mesh3D toMesh(int steps, double thetaOffset) {
    return toMesh(null, steps, thetaOffset, true, true);
    }
    
-   public Mesh3D toMesh(Mesh3D mesh, int steps, float thetaOffset, 
+   public Mesh3D toMesh(Mesh3D mesh, int steps, double thetaOffset, 
    boolean topClosed, boolean bottomClosed) {
    
    ReadonlyVec3D c = this.add(0.01f, 0.01f, 0.01f);
@@ -259,9 +259,9 @@ public class SpiralLineStrip3D extends LineStrip3D2 {
    Vec3D q = add(halfAxis);
    Vec3D[] south = new Vec3D[steps];
    Vec3D[] north = new Vec3D[steps];
-   float phi = MathUtils.TWO_PI / steps;
+   double phi = MathUtils.TWO_PI / steps;
    for (int i = 0; i < steps; i++) {
-   float theta = i * phi + thetaOffset;
+   double theta = i * phi + thetaOffset;
    ReadonlyVec3D nr = n.getRotatedAroundAxis(dir, theta);
    south[i] = nr.scale(radiusSouth).addSelf(p);
    north[i] = nr.scale(radiusNorth).addSelf(q);
