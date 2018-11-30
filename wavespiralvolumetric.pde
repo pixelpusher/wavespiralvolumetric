@@ -44,34 +44,7 @@ int numShapeSegments = 1; // how many segments per spiral to chop this into when
 int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
 // NOTE: arbitrarily changed this to 4 to get better resultion
 
-<<<<<<< HEAD
-BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
-final int TWEEN_POINTS = 3; // resolution of tween
-
-float BaseThickness = 1; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
-/*
-      fstr(turns, 2) +"-" +
- fstr(distanceBetweenSpirals, 2) + "-" +
- fstr(xScale, 2) + "-" +
- fstr(spiralRadius, 2) + "-" +
- fstr(adjust, 4) + "-" +
- fstr(zScale, 2) + "-" +
- */
-// removed dependency on turns -- 2017-Aug-14
-
-float turns = 3.5;
-float distanceBetweenSpirals = 35.48f; // in mm
-float xScale = 23.07f; // in mm
-float spiralRadius = 14.172489f; // in mm
-float adjust = 0.2219f;
-//float adjust = 1f;
-float zScale = 23.164747f;
-float minThickness = 0.08916104f; // percentage, 0 - 1
-//int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
-// metal
-=======
 float BaseThickness = 1.2; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
->>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
 
 // helical shape properties
 double turns = 3.5d; // full 2PI turns of the helix
@@ -225,18 +198,11 @@ void createSpiral(int numPoints, int startIndex, int endIndex, double _turns, Tr
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
     Vec3D v1 = nextSpiralVec.sub( spiralVec  ); // if this is negative, saves a step below negating it with cross product
 
-<<<<<<< HEAD
     // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees.
     // This causes errors in geometry.
 
     //outVec.set(v0.add(v1));
     outVec.set(v0.y + v1.y, -v0.x - v1.x, 0); // cross product with Z axis
-=======
-    // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees. This causes errors in geometry.
-
-    Vec3D po = outwardVecs.get(i-1);
-    outVec.set(v0.add(v1));
->>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
     outVec.normalize();
   }
 
@@ -259,11 +225,6 @@ void createSpiral(int numPoints, int startIndex, int endIndex, double _turns, Tr
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
-<<<<<<< HEAD
-  float ripplesPerTurn = 0.0f; // 20 for tests
-
-=======
->>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
   for (int i=0; i<_numPoints; i++)
   {
     double percentDone = (double)i/(double)_numPoints;
@@ -281,35 +242,7 @@ void createSpiral(int numPoints, int startIndex, int endIndex, double _turns, Tr
     double z = currentExtrusion*zScale;
     double x = currentExtrusion*xScale;
 
-<<<<<<< HEAD
-    case 4:   
-      strip = makeProfile4();
-      break;
-
-    case 5:   
-      strip = makeProfile5();
-      break;
-
-    case 6:   
-      strip = makeProfile6();
-      break;
-
-    case 7:   
-      strip = makeProfile7(currentExtrusion);
-      break;
-
-    case 8: strip = makeProfile8(currentExtrusion);
-    break;
-
-    case 9: strip = makeProfile9(currentExtrusion);
-    break;
-
-    default:
-      break;
-    }
-=======
     LineStrip2D strip = profilePoints.calcPoints(x, z);
->>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
 
     profiles.add(strip);
 
