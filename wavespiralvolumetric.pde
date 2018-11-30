@@ -41,7 +41,7 @@ boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false;
 private Vec3D modelBounds; // size of actual generated model
 
 int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
-int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
+int spiralNumPoints = 10*(154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
 // NOTE: arbitrarily changed this to 4 to get better resultion
 
 float BaseThickness = 1.2; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
@@ -54,7 +54,7 @@ double spiralRadius = 14.172489d; // in mm
 //double adjust = 0.2219f;
 double adjust = 1d; // adjustment for some shapes to prevent geometry that is too thin
 double zScale = 23.164747d; // upwards facing scale of profile shape in mm
-double ripplesPerTurn = 20; // how many "ripples" in the x/z radius of the profiles per turn (2PI) of the helix
+double ripplesPerTurn = 12; // how many "ripples" in the x/z radius of the profiles per turn (2PI) of the helix
 
 float totalHeight = (float)(turns*distanceBetweenSpirals+BaseThickness); // guesstimate for reference
 
@@ -228,19 +228,21 @@ void createSpiral(int numPoints, int startIndex, int endIndex, double _turns, Tr
   for (int i=0; i<_numPoints; i++)
   {
     double percentDone = (double)i/(double)_numPoints;
-    double totalRadians = ripplesPerTurn*turns*TWO_PI;
-    double currentAngle = totalRadians * percentDone;  
+    double totalRadians = ripplesPerTurn*turns*Math.PI;
+    double currentAngle = totalRadians * percentDone;
 
     // Normal - //0.5f + adjust; 
     double currentExtrusion = 0.5d + adjust;
 
-    if (ripplesPerTurn >= 1)
-      currentExtrusion = 0.125f*(Math.sin(currentAngle)) + currentExtrusion;
+    if (ripplesPerTurn >= 1) 
+      currentExtrusion = (0.25f*Math.sin(currentAngle+2d*PI*percentDone)+0.2d*Math.cos(2d*PI*percentDone+Math.cos(currentAngle/6d))) + currentExtrusion;
+
+    currentExtrusion *= 0.5d+0.5d*(1d-percentDone);
 
     double spiralRadius = spiral.getRadius();
 
     double z = currentExtrusion*zScale;
-    double x = currentExtrusion*xScale;
+    double x = currentExtrusion*xScale*(0.25d+0.75d*(1d-percentDone));
 
     LineStrip2D strip = profilePoints.calcPoints(x, z);
 

@@ -176,7 +176,7 @@ void setupProfiles()
   ///////////////// 2nd variant: for spirals 005 & 006 /////////////////////////////////
   profilesIter.add( new Profile() {
     public final String getName() { 
-      return "Param ellipse 005-6";
+      return "Param ellipse 005-6 v2";
     }
 
     public final LineStrip2D calcPoints(double x, double z) 
@@ -191,7 +191,7 @@ void setupProfiles()
       double inc = Math.PI/48d; // the resolution of the curve (smaller = more detail)
       double offset = Math.PI/8d; // smaller values ( < PI/2) curl shape CCW, larger values in CW direction
       // note: helix B uses offset of PI/3
-      double curviness = 1/5d; // how curvy/paisley-like the final shape is. 0 is flattened, 0.5 is circular
+      double curviness = 1/12d; // how curvy/paisley-like the final shape is. 0 is flattened, 0.5 is circular
       // and is max before outline splits
 
       float x0=0, z0=0;
@@ -465,7 +465,7 @@ LineStrip2D strip = new LineStrip2D();
   profilesIter.add( new Profile() {
     public final String getName() { 
       // like a symmetrical leaf petal
-      return "Param ellipse 005-6 v2";
+      return "Param ellipse 005-6 v3";
     }
 
     public final LineStrip2D calcPoints(double x, double z) 
@@ -506,11 +506,11 @@ LineStrip2D strip = new LineStrip2D();
 
         float rotAngle = PI/8;
 
-        //float nz = newz*cos(rotAngle)-newx*sin(rotAngle);
-        //float nx = newz*cos(rotAngle)+newx*sin(rotAngle);
+        float nz = newz*cos(rotAngle)-newx*sin(rotAngle);
+        float nx = newz*cos(rotAngle)+newx*sin(rotAngle);
 
-        float nz = newz;
-        float nx = newx;
+        //float nz = newz;
+        //float nx = newx;
 
         strip.add(nx, nz);
 
