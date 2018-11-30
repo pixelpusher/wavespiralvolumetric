@@ -25,33 +25,26 @@ import toxi.math.*;
 import toxi.volume.*;
 import processing.opengl.*;
 import peasy.*;
+import java.util.List;
+import org.apache.commons.collections4.iterators.LoopingListIterator;
 
 
-boolean fileChosen = false;
-PrintWriter output, outputRMS;
-float[] soundAmplitudes;
-float[] rmsAmplitudes, rmsAmplitudes2;
 ArrayList<Vec3D> outwardVecs, tanVecs;
-ArrayList<LineStrip2D> profiles; // 2D polygon shapes for the tube geometry based on rms volume
-ArrayList<LineStrip3D2> profilesOnCurve; // the 3D profiles fitted to the underlying curve
 
 PShape spiralShape = null;
 PShape profileShape = null;
 PShape printerBoundingBox = null;
-PShape soundAmpsShape = null, soundRMSShape = null, soundRMSShape2 = null;
-
-byte profileNumber = 1; // which swept helical profile to use
 
 TriangleMesh mesh = null;
 
-boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false, drawRMSOverlay=false;
+boolean drawProfiles = false, drawVecs=false, drawPrinterBox=false;
 private Vec3D modelBounds; // size of actual generated model
 
-int diameterQuality = 10; // for spline profile
 int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
 int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
 // NOTE: arbitrarily changed this to 4 to get better resultion
 
+<<<<<<< HEAD
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
 final int TWEEN_POINTS = 3; // resolution of tween
 
@@ -76,15 +69,25 @@ float zScale = 23.164747f;
 float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
 // metal
+=======
+float BaseThickness = 1.2; //mm /// NOTE: changed to 2mm at spiral 009, then 0.5mm got UM3 tests
+>>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
 
-float totalHeight = turns*distanceBetweenSpirals+BaseThickness; // guesstimate for reference
+// helical shape properties
+double turns = 3.5d; // full 2PI turns of the helix
+double distanceBetweenSpirals = 35.48d; // z-distance between point and point directly above (or below) in mm
+double xScale = 23.07d; // outward facing scale of profile shape in mm
+double spiralRadius = 14.172489d; // in mm
+//double adjust = 0.2219f;
+double adjust = 1d; // adjustment for some shapes to prevent geometry that is too thin
+double zScale = 23.164747d; // upwards facing scale of profile shape in mm
+double ripplesPerTurn = 20; // how many "ripples" in the x/z radius of the profiles per turn (2PI) of the helix
 
+float totalHeight = (float)(turns*distanceBetweenSpirals+BaseThickness); // guesstimate for reference
 
-PeasyCam cam; // 3d camera
+PeasyCam cam; // 3d camera manipulation object
 
-SpiralLineStrip3D spiral; // basic line rendering of spiral (helix) shape in 3D 
-
-static final float log10 = log(10);
+SpiralLineStrip3D spiral; // basic line rendering of spiral (helix) shape in 3D
 
 
 /*
@@ -93,20 +96,6 @@ static final float log10 = log(10);
 static String fstr(float val, int places)
 {
   return String.format(java.util.Locale.ROOT, "%."+places+"f", val);
-}
-
-// convert number from 0 to 1 into log scale from 0 to 1
-float logScale(float val, float minVal, float maxVal)
-{
-  val = map(val, minVal, maxVal, 1, 10);
-  return log(val)/log10;
-}
-
-// convert number from 0 to 1 into log scale from 0 to 1
-float revLogScale(float val, float minVal, float maxVal)
-{
-  val = map(val, minVal, maxVal, 10, 1);
-  return log(val)/log10;
 }
 
 
@@ -153,14 +142,10 @@ void setup()
   spiral.setTurns(turns, false)
     .setRadius(spiralRadius, false)
     .setDistanceBetweenTurns(distanceBetweenSpirals, false)
-    .setEdgeThickness(xScale, false);
+    .setEdgeThickness(xScale, false); 
 
-  profiles = new ArrayList<LineStrip2D>();
-  outwardVecs = new ArrayList<Vec3D>();
-  tanVecs = new ArrayList<Vec3D>();
-  profilesOnCurve = new ArrayList<LineStrip3D2>();  
-
-  generateSpiralShapes();
+  setupProfiles(); // create list of profile generating functions
+  createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
 }
 
 
@@ -170,8 +155,17 @@ void setup()
 //
 
 
-void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
+void createSpiral(int numPoints, int startIndex, int endIndex, double _turns, TriangleMesh mesh, boolean startcap, boolean endcap, boolean base) throws NullPointerException
 {  
+  ArrayList<LineStrip2D> profiles; // 2D polygon shapes for the tube geometry based on rms volume
+  ArrayList<LineStrip3D2> profilesOnCurve; // the 3D profiles fitted to the underlying curve
+
+
+  profiles = new ArrayList<LineStrip2D>();
+  outwardVecs = new ArrayList<Vec3D>();
+  tanVecs = new ArrayList<Vec3D>();
+  profilesOnCurve = new ArrayList<LineStrip3D2>(); 
+
   // requires:
   // - profiles (list of circular profiles for each tube segment).  Will be cleared and regenerated
   // - profilesOnCurve (list of above profiles fit to the 3D spiral curve). Will be cleared and regenerated
@@ -226,15 +220,23 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     tanVec.set(nextSpiralVec.sub( prevSpiralVec) );
     tanVec.normalize();
 
-    // outward facing vector at each point
+    // outward facing vector at each point (cross-product) -- simplified because with 
+    // a helix, only z vector is non-zero.
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
     Vec3D v1 = nextSpiralVec.sub( spiralVec  ); // if this is negative, saves a step below negating it with cross product
 
+<<<<<<< HEAD
     // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees.
     // This causes errors in geometry.
 
     //outVec.set(v0.add(v1));
     outVec.set(v0.y + v1.y, -v0.x - v1.x, 0); // cross product with Z axis
+=======
+    // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees. This causes errors in geometry.
+
+    Vec3D po = outwardVecs.get(i-1);
+    outVec.set(v0.add(v1));
+>>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
     outVec.normalize();
   }
 
@@ -257,45 +259,29 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   profilesOnCurve.ensureCapacity(_numPoints);
 
 
+<<<<<<< HEAD
   float ripplesPerTurn = 0.0f; // 20 for tests
 
+=======
+>>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
   for (int i=0; i<_numPoints; i++)
   {
-    float percentDone = float(i)/_numPoints;
-    float totalRadians = ripplesPerTurn*turns*TWO_PI;
-    float currentAngle = totalRadians * percentDone;  
+    double percentDone = (double)i/(double)_numPoints;
+    double totalRadians = ripplesPerTurn*turns*TWO_PI;
+    double currentAngle = totalRadians * percentDone;  
 
     // Normal - //0.5f + adjust; 
-    float currentExtrusion = 0.5f + adjust;
+    double currentExtrusion = 0.5d + adjust;
 
     if (ripplesPerTurn >= 1)
-      currentExtrusion = 0.125f*(sin(currentAngle)) +  currentExtrusion;
+      currentExtrusion = 0.125f*(Math.sin(currentAngle)) + currentExtrusion;
 
-    float thick = spiral.getEdgeThickness();
-    float spiralRadius = spiral.getRadius();
+    double spiralRadius = spiral.getRadius();
 
-    float y =  currentExtrusion*zScale;
-    float yBase = 1f*zScale;
+    double z = currentExtrusion*zScale;
+    double x = currentExtrusion*xScale;
 
-    float x = currentExtrusion*thick;
-    float xBase = 0; // minRMS*thick; 
-
-    LineStrip2D strip = new LineStrip2D();
-
-    switch(profileNumber)
-    {
-    case 1:   
-      strip = makeProfile1();
-      break;
-
-    case 2:   
-      strip = makeProfile2();
-      break;
-
-    case 3:   
-      strip = makeProfile3();
-      break;
-
+<<<<<<< HEAD
     case 4:   
       strip = makeProfile4();
       break;
@@ -321,6 +307,9 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     default:
       break;
     }
+=======
+    LineStrip2D strip = profilePoints.calcPoints(x, z);
+>>>>>>> 4e968be8462bcddb6db32c92f7d96547d8a3dad9
 
     profiles.add(strip);
 
@@ -343,9 +332,6 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   // iterate through all profiles and build 3D mesh
 
   final int numProfilePoints = (profiles.get(0).getVertices()).size(); // all are the same size
-
-  // store the previously calculated points for the bezier surface in between profile rings
-  Vec3D[] prevInterpPoints = new Vec3D[TWEEN_POINTS]; 
 
   for (int i=0; i < _numPoints-1; i++)
   {
@@ -643,11 +629,26 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
   println("mesh faces:" + mesh.getNumFaces());
   println("mesh verts:" + mesh.getNumVertices());
 
+  // set color scheme
+  //helixColors = helixColorTheme.getColors(_numPoints);
+
+  helixColorGrad.addColorAt(0, helixStartColor);
+  helixColorGrad.addColorAt(mesh.getNumFaces(), helixEndColor);
+  helixColors = helixColorGrad.calcGradient(0, mesh.getNumFaces());
+
+  //spiralShape = meshToRetained(mesh, helixColors, false);
+  spiralShape = meshToRetained(mesh, false);
+
+  // create profiles shape (for future visualisation)
+  profileShape = pathsToShape2(profilesOnCurve);
+  profileShape.noFill();
+  profileShape.setStroke(color(255, 80));
+
   AABB modelBoundsAABB = mesh.getBoundingBox();
   modelBounds = modelBoundsAABB.getExtent().scaleSelf(2*0.0393701);
   println("model bounds in inches:"+ modelBounds);
 
-  totalHeight = turns*distanceBetweenSpirals+BaseThickness;
+  totalHeight = (float)( turns*distanceBetweenSpirals+BaseThickness);
 
   println("Model is " + totalHeight + "mm tall");
   println("= " + (0.0393701*totalHeight));
@@ -753,9 +754,12 @@ void keyReleased()
   if (key > 48 && key < 59)
   {
     noLoop();
-    profileNumber = (byte)(key-48);
-    println("profile: " + profileNumber);
-    generateSpiralShapes();
+    if (profilesIter.hasNext()) 
+    {
+      profilePoints = profilesIter.next();
+      println("profile selected: " + profilePoints.getName());
+      generateSpiralShapes();
+    }
     loop();
   } else
     if (key == 'D')
@@ -814,20 +818,6 @@ void keyReleased()
       generateSpiralShapes();
       println("xScale:" + xScale);
       loop();
-    } else if (key == 'm')
-    {
-      noLoop();
-      minThickness/=1.1;
-      generateSpiralShapes();
-      println("minThickness:" + minThickness);
-      loop();
-    } else if (key == 'M')
-    {
-      noLoop();
-      minThickness*=1.1;
-      generateSpiralShapes();
-      println("minThickness:" + minThickness);
-      loop();
     } else if (key == 'a')
     {
       noLoop();
@@ -865,12 +855,12 @@ void keyReleased()
     } else if (key == 'F')
     {
       String fileName = "spiral" +
-        fstr(turns, 2) +"-" +
-        fstr(distanceBetweenSpirals, 2) + "-" +
-        fstr(xScale, 2) + "-" +
-        fstr(spiralRadius, 2) + "-" +
-        fstr(adjust, 4) + "-" +
-        fstr(zScale, 2) + "-" +
+        fstr((float)turns, 2) +"-" +
+        fstr((float)distanceBetweenSpirals, 2) + "-" +
+        fstr((float)xScale, 2) + "-" +
+        fstr((float)spiralRadius, 2) + "-" +
+        fstr((float)adjust, 4) + "-" +
+        fstr((float)zScale, 2) + "-" +
         ".png" ;
       saveFrame(dataPath(fileName));
     } else if (key == 's')
@@ -878,12 +868,12 @@ void keyReleased()
       println("SAVING!!!!");
 
       String fileName = "spiral" +
-        fstr(turns, 2) +"-" +
-        fstr(distanceBetweenSpirals, 2) + "-" +
-        fstr(xScale, 2) + "-" +
-        fstr(spiralRadius, 2) + "-" +
-        fstr(adjust, 4) + "-" +
-        fstr(zScale, 2) + "-" +
+        fstr((float)turns, 2) +"-" +
+        fstr((float)distanceBetweenSpirals, 2) + "-" +
+        fstr((float)xScale, 2) + "-" +
+        fstr((float)spiralRadius, 2) + "-" +
+        fstr((float)adjust, 4) + "-" +
+        fstr((float)zScale, 2) + "-" +
         ".stl" ;
       mesh.saveAsSTL(dataPath(fileName) );
 
@@ -900,21 +890,6 @@ void generateSpiralShapes()
 {
   noLoop(); //turn off loop until needed
   createSpiral(spiralNumPoints, 0, -1, turns, mesh, false, true, true);
-
-  // set color scheme
-  //helixColors = helixColorTheme.getColors(_numPoints);
-
-  helixColorGrad.addColorAt(0, helixStartColor);
-  helixColorGrad.addColorAt(mesh.getNumFaces(), helixEndColor);
-  helixColors = helixColorGrad.calcGradient(0, mesh.getNumFaces());
-
-  //spiralShape = meshToRetained(mesh, helixColors, false);
-  spiralShape = meshToRetained(mesh, false);
-
-  // create profiles shape (for future visualisation)
-  profileShape = pathsToShape2(profilesOnCurve);
-  profileShape.noFill();
-  profileShape.setStroke(color(255, 80));
   loop();
 }
 
