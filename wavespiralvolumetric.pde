@@ -49,7 +49,7 @@ private Vec3D modelBounds; // size of actual generated model
 
 int diameterQuality = 10; // for spline profile
 int numShapeSegments = 1; // how many segments per spiral to chop this into when saving
-int spiralNumPoints = 4*(154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
+int spiralNumPoints = (154368/441); // points in the spiral total.  Seems arbitrary but there's a historical reason for this funny number.
 // NOTE: arbitrarily changed this to 4 to get better resultion
 
 BezierInterpolation tween=new BezierInterpolation(-0.2, 0.2); // for interpolating between points
@@ -70,8 +70,8 @@ float turns = 3.5;
 float distanceBetweenSpirals = 35.48f; // in mm
 float xScale = 23.07f; // in mm
 float spiralRadius = 14.172489f; // in mm
-//float adjust = 0.2219f;
-float adjust = 1f;
+float adjust = 0.2219f;
+//float adjust = 1f;
 float zScale = 23.164747f;
 float minThickness = 0.08916104f; // percentage, 0 - 1
 //int RMSSize = (int)(48000*4.873*0.00125); // 1/500th of a second  CHANGEME!!!!!  Remember that 44100 is 1 sec
@@ -228,14 +228,13 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
 
     // outward facing vector at each point
     Vec3D v0 = spiralVec.sub( prevSpiralVec );
-    Vec3D v1 = spiralVec.sub( nextSpiralVec );
+    Vec3D v1 = nextSpiralVec.sub( spiralVec  ); // if this is negative, saves a step below negating it with cross product
 
-    // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees.  Hmm.
+    // NOTE: need double precision otherwise the vectors are slightly off every 90 degrees.
     // This causes errors in geometry.
 
-    Vec3D po = outwardVecs.get(i-1);
-    //outVec.set(v0.add(v1).interpolateTo(po,0.1)); // try to smooth it a bit...
-    outVec.set(v0.add(v1));
+    //outVec.set(v0.add(v1));
+    outVec.set(v0.y + v1.y, -v0.x - v1.x, 0); // cross product with Z axis
     outVec.normalize();
   }
 
@@ -312,6 +311,12 @@ void createSpiral(int numPoints, int startIndex, int endIndex, float _turns, Tri
     case 7:   
       strip = makeProfile7(currentExtrusion);
       break;
+
+    case 8: strip = makeProfile8(currentExtrusion);
+    break;
+
+    case 9: strip = makeProfile9(currentExtrusion);
+    break;
 
     default:
       break;
@@ -662,7 +667,7 @@ void drawOutVecs()
   for (Vec3D v : outwardVecs)
   {
     vertex(spiral.get(i));
-    vertex(v.scale(10).add(spiral.get(i)));
+    vertex(v.scale(20).add(spiral.get(i)));
     i++;
   }
   endShape();
@@ -670,10 +675,7 @@ void drawOutVecs()
 
 void draw()
 {  
-  if (drawProfiles)
-    background(255);
-  else
-    background (0);
+  background (0);
 
   fill(200, 0, 200, 100);
   //stroke(255);
@@ -683,6 +685,7 @@ void draw()
 
   // draw dektop 3D printer shape for reference
   if (drawPrinterBox) shape(printerBoundingBox);
+  hint(ENABLE_DEPTH_TEST);
 
   if (!drawProfiles)
   {
@@ -707,6 +710,8 @@ void draw()
     if (profileShape != null)
       shape(profileShape);
   }
+   if (drawVecs)
+      drawOutVecs();
   popMatrix();
 
   if (true)
@@ -716,10 +721,6 @@ void draw()
     int fontsize = 18;
     int startX = fontsize;
     int startY = 2*fontsize;
-
-    if (drawVecs)
-      drawOutVecs();
-    hint(ENABLE_DEPTH_TEST);
 
     cam.beginHUD();
     textSize(fontsize);
@@ -749,7 +750,7 @@ void draw()
 void keyReleased()
 {
   // number keys 1-6
-  if (key > 48 && key < 58)
+  if (key > 48 && key < 59)
   {
     noLoop();
     profileNumber = (byte)(key-48);
